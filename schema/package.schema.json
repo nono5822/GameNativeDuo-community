@@ -205,6 +205,32 @@
             "type": "string",
             "pattern": "^[A-Za-z0-9_.-]+=(n|b|n,b|b,n|)$"
           }
+        },
+        "sharedAssets": {
+          "description": "Copies of files the app already ships (no download), to paths in the game folder. Known: bepinex, unity-split, BepInEx-LICENSE.txt, BepInEx-NOTICE.txt.",
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "bepinex",
+              "unity-split",
+              "BepInEx-LICENSE.txt",
+              "BepInEx-NOTICE.txt"
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/relPathOrEmpty"
+          }
+        },
+        "launchExecutable": {
+          "description": "Executable to start instead of the game's own, relative to the game folder (e.g. a mod loader).",
+          "$ref": "#/$defs/relPath"
+        },
+        "splitLayout": {
+          "description": "How the screen split cuts the tall game window (default native).",
+          "enum": [
+            "fill",
+            "native"
+          ]
         }
       }
     }
