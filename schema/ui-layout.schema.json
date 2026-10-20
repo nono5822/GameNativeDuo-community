@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nono5822.github.io/GameNativeDuo-community/schema/ui-layout.schema.json",
+  "title": "GameNative Duo UI layout",
+  "description": "Which screen each UI element goes to, its size and shift. Exactly the file the in-game layout editor saves. Element ids come from the game's engine adapter (Unity: object paths like 'HUD Root/HudUI/UIContainer/crossHair').",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "elements"],
+  "properties": {
+    "format": { "const": "gamenative-duo/ui-layout" },
+    "version": { "const": 1 },
+    "game": { "type": "string", "maxLength": 80 },
+    "engine": { "type": "string", "pattern": "^[a-z0-9-]{1,40}$" },
+    "elements": {
+      "type": "object",
+      "maxProperties": 500,
+      "propertyNames": { "minLength": 1, "maxLength": 400 },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "screen": { "enum": ["default", "bottom", "top", "hidden"] },
+          "scale": { "type": "number", "minimum": 0.25, "maximum": 4 },
+          "x": { "description": "Shift, fraction of the screen's width (+ right).", "type": "number", "minimum": -2, "maximum": 2 },
+          "y": { "description": "Shift, fraction of the screen's height (+ down).", "type": "number", "minimum": -2, "maximum": 2 }
+        }
+      }
+    }
+  }
+}

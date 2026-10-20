@@ -1,0 +1,9 @@
+{
+  "format": "gamenative-duo/ui-layout",
+  "version": 1,
+  "game": "STEAM_433340",
+  "engine": "unity-ugui",
+  "elements": {
+    "HUD Root/HudUI/UIContainer/crossHair": { "screen": "top" }
+  }
+}

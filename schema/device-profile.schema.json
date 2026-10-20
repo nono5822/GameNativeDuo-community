@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nono5822.github.io/GameNativeDuo-community/schema/device-profile.schema.json",
+  "title": "GameNative Duo device profile",
+  "description": "How a dual-screen handheld lays out its screens. Device profiles are not game-specific: they live under devices/<package-id>/. Ground truth comes from the app's duo/displays.json on the device.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "id",
+    "displayName",
+    "match",
+    "topIsDefault"
+  ],
+  "properties": {
+    "format": {
+      "const": "gamenative-duo/device-profile"
+    },
+    "version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{1,40}$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "match": {
+      "description": "Android Build.MANUFACTURER equals manufacturer (case-insensitive) and Build.MODEL contains modelContains.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manufacturer",
+        "modelContains"
+      ],
+      "properties": {
+        "manufacturer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "modelContains": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        }
+      }
+    },
+    "topIsDefault": {
+      "description": "True when the top (game) screen is Android's default display.",
+      "type": "boolean"
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gap": {
+          "description": "Top-screen pixels hidden between the screens.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 800
+        },
+        "bottomScale": {
+          "description": "Bottom-screen pixels per top-screen pixel of the same physical length.",
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1.4
+        },
+        "bottomShift": {
+          "type": "integer",
+          "minimum": -300,
+          "maximum": 300
+        }
+      }
+    }
+  }
+}

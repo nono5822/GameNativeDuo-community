@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.crosshair-on-top",
+  "kind": "ui-layout",
+  "packageVersion": "1.0.0",
+  "game": {
+    "store": "steam",
+    "appId": "433340",
+    "title": "Slime Rancher",
+    "builds": [
+      "1.4.4"
+    ]
+  },
+  "requires": {
+    "adapter": "unity-ugui>=0.2"
+  },
+  "testedOn": [
+    "ayn-thor"
+  ],
+  "title": "Crosshair on top",
+  "description": "The default layout: HUD on the bottom screen, the crosshair kept on the top screen where you aim.",
+  "authors": [
+    "GameNative Duo"
+  ],
+  "license": "CC0-1.0",
+  "tags": [
+    "default"
+  ],
+  "files": [
+    {
+      "path": "ui-layout.json",
+      "sha256": "e1eed7ad9212317c9273d804cc9567f9b8e9104f69c5e0fa239b81440918df93"
+    }
+  ]
+}

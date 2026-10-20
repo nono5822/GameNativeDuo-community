@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.recommended-settings",
+  "kind": "duo-settings",
+  "packageVersion": "1.0.0",
+  "game": {
+    "store": "steam",
+    "appId": "433340",
+    "title": "Slime Rancher"
+  },
+  "testedOn": [
+    "ayn-thor"
+  ],
+  "title": "Recommended settings",
+  "description": "Screen split with each part at its display's own resolution, and native touch on the bottom screen.",
+  "authors": [
+    "GameNative Duo"
+  ],
+  "license": "CC0-1.0",
+  "files": [
+    {
+      "path": "duo-settings.json",
+      "sha256": "7755070453a9c276c8241b979096e3bebfe1298f1010e3f4e1aaab26a6c5c110"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+name: Publish index
+
+# Compiles the packages into the signed index the app reads, and publishes it on GitHub Pages.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # package dates come from git history
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tools/requirements.txt
+      - name: Build and sign
+        env:
+          DUO_INDEX_SIGNING_KEY: ${{ secrets.DUO_INDEX_SIGNING_KEY }}
+        run: python tools/duo_index.py build --out site
+      - name: Verify against the key the app pins
+        run: python tools/duo_index.py verify --site site --public-key "$(cat keys/index-public-key.txt)"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

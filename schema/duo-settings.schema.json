@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nono5822.github.io/GameNativeDuo-community/schema/duo-settings.schema.json",
+  "title": "GameNative Duo settings for a game",
+  "description": "Settings from the container's 'GameNative Duo' tab. Only the fields present are applied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version"],
+  "properties": {
+    "format": { "const": "gamenative-duo/settings" },
+    "version": { "const": 1 },
+    "screenSplit": { "type": "boolean" },
+    "splitLayout": { "description": "fill: both parts as wide as the game screen; native: each part 1:1 with its display.", "enum": ["fill", "native"] },
+    "nativeTouch": { "type": "boolean" },
+    "bottomPanelEnabled": { "type": "boolean" }
+  }
+}

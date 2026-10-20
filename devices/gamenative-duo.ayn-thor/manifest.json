@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.ayn-thor",
+  "kind": "device-profile",
+  "packageVersion": "1.0.0",
+  "testedOn": [
+    "ayn-thor"
+  ],
+  "title": "AYN Thor",
+  "description": "Top 6\" 1920x1080 (Android's default display), bottom 3.92\" 1240x1080. Screen alignment tuned by eye on a Thor.",
+  "authors": [
+    "GameNative Duo"
+  ],
+  "license": "CC0-1.0",
+  "files": [
+    {
+      "path": "device-profile.json",
+      "sha256": "f4cedd5786a3e592cdbdf35b9fa3a90d3e8578585c15fec7a603b7879822d65a"
+    }
+  ]
+}

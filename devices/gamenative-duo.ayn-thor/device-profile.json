@@ -1,0 +1,9 @@
+{
+  "format": "gamenative-duo/device-profile",
+  "version": 1,
+  "id": "ayn-thor",
+  "displayName": "AYN Thor",
+  "match": { "manufacturer": "AYN", "modelContains": "Thor" },
+  "topIsDefault": true,
+  "calibration": { "gap": 249, "bottomScale": 1.142, "bottomShift": 0 }
+}

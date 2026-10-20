@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nono5822.github.io/GameNativeDuo-community/schema/package.schema.json",
+  "title": "GameNative Duo community package manifest",
+  "description": "games/<store>-<appId>/<id>/manifest.json (devices/<id>/manifest.json for device profiles). One package = one layout, settings file, device profile or mod.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "id",
+    "kind",
+    "packageVersion",
+    "title",
+    "description",
+    "authors",
+    "license",
+    "files"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "format": {
+      "const": "gamenative-duo/package"
+    },
+    "version": {
+      "const": 1
+    },
+    "id": {
+      "description": "Unique package id, <author>.<name>, lower case. Must equal the package folder's name.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,38}\\.[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "kind": {
+      "enum": [
+        "ui-layout",
+        "duo-settings",
+        "device-profile",
+        "mod"
+      ]
+    },
+    "packageVersion": {
+      "description": "Semantic version of this package.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "game": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "store",
+        "appId",
+        "title"
+      ],
+      "properties": {
+        "store": {
+          "enum": [
+            "steam",
+            "epic",
+            "gog",
+            "amazon"
+          ]
+        },
+        "appId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "builds": {
+          "description": "Game versions this package was made and tested with (as the game shows them). Empty: any.",
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "maxLength": 40
+          }
+        }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adapter": {
+          "description": "Engine adapter and minimum version, e.g. unity-ugui>=0.2 (the engine name the mod sends in its bridge HELLO).",
+          "type": "string",
+          "pattern": "^[a-z0-9-]+(>=[0-9]+(\\.[0-9]+){0,2})?$"
+        },
+        "app": {
+          "description": "Minimum GameNative Duo version, e.g. >=0.3",
+          "type": "string",
+          "pattern": "^>=[0-9]+(\\.[0-9]+){0,2}$"
+        }
+      }
+    },
+    "testedOn": {
+      "description": "Device profile ids it was tested on (e.g. ayn-thor).",
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]{1,40}$"
+      }
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 60
+      }
+    },
+    "license": {
+      "description": "SPDX licence id of this package's content, e.g. CC0-1.0, MIT.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9.+-]{2,40}$"
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]{1,24}$"
+      }
+    },
+    "screenshots": {
+      "description": "Paths of images in the package folder, top and bottom screen. Shown on the package card.",
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "$ref": "#/$defs/relPath"
+      }
+    },
+    "files": {
+      "description": "Every file the package installs. Local files sit in the package folder; large mod binaries may instead be a GitHub Release asset of this repo (url).",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/relPath"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https://github\\.com/nono5822/GameNativeDuo-community/releases/download/"
+          }
+        }
+      }
+    },
+    "install": {
+      "description": "mod only: where files go. Keys are entries of files[].path; values are paths relative to the game folder (gameFiles) or the Wine prefix's drive_c (prefixFiles).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gameFiles": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/relPath"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/relPathOrEmpty"
+          }
+        },
+        "prefixFiles": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/relPath"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/relPath"
+          }
+        },
+        "dllOverrides": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+=(n|b|n,b|b,n|)$"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relPath": {
+      "description": "Forward slashes, relative, no '..', no leading '/'.",
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))(?!.*\\\\)[^:*?\"<>|]+$"
+    },
+    "relPathOrEmpty": {
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/relPath"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "not": {
+              "const": "device-profile"
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "game"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "mod"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "install",
+          "requires"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "install"
+          ]
+        }
+      }
+    }
+  ]
+}

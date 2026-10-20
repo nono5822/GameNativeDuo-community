@@ -1,0 +1,7 @@
+{
+  "format": "gamenative-duo/settings",
+  "version": 1,
+  "screenSplit": true,
+  "splitLayout": "native",
+  "nativeTouch": true
+}
