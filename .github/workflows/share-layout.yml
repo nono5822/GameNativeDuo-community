@@ -1,0 +1,71 @@
+name: Shared layout to pull request
+
+# "Share a UI layout" issues (sent from the app) become a package pull request. The issue body is untrusted: it only
+# reaches Python through an environment variable, is parsed as data and must pass the normal validation.
+on:
+  issues:
+    types: [opened, edited, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: share-layout-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  convert:
+    if: contains(github.event.issue.labels.*.name, 'share-layout') && github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tools/requirements.txt
+      - name: Build the package
+        id: build
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RESULT_FILE: ${{ runner.temp }}/result.md
+        run: |
+          if folder=$(python tools/issue_to_package.py); then
+            echo "folder=$folder" >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Report problems
+        if: steps.build.outputs.failed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+          RESULT: ${{ runner.temp }}/result.md
+        run: |
+          { echo "Thanks! The bot could not make a package from this yet:"; echo; cat "$RESULT"; echo;
+            echo "Edit the issue to fix it and the bot will try again."; } > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+      - name: Open the pull request
+        if: steps.build.outputs.folder != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+          FOLDER: ${{ steps.build.outputs.folder }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          branch="share/issue-$NUMBER"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add -- "$FOLDER"
+          git commit -m "Add shared layout $(basename "$FOLDER") (#$NUMBER)" -m "Shared by @$AUTHOR in #$NUMBER."
+          git push --force origin "$branch"
+          if pr=$(gh pr list --head "$branch" --json url -q '.[0].url') && [ -n "$pr" ]; then
+            gh issue comment "$NUMBER" --body "Updated the pull request: $pr"
+          else
+            pr=$(gh pr create --head "$branch" --title "Shared layout: $(basename "$FOLDER")" \
+              --body "From #$NUMBER by @$AUTHOR. Validated by the bot; a maintainer reviews and merges. Closes #$NUMBER.")
+            gh issue comment "$NUMBER" --body "Thanks! It passed the checks and is waiting for review: $pr"
+          fi

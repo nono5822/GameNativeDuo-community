@@ -1,0 +1,76 @@
+name: Share a UI layout
+description: Share the dual-screen layout you made with GameNative Duo's layout editor. A bot turns it into a package.
+title: "Layout: "
+labels: ["share-layout"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The app fills this in when you tap **Community → Share your layout** on a game's page. A bot checks it and opens
+        a pull request; a maintainer merges it, and it shows up in the app for everyone.
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      description: The game's store and id as GameNative Duo shows it, e.g. STEAM_433340.
+      placeholder: STEAM_433340
+    validations:
+      required: true
+  - type: input
+    id: game-title
+    attributes:
+      label: Game title
+      placeholder: Slime Rancher
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Layout name
+      description: Short, shown on the card (max 60 characters).
+      placeholder: Compact HUD
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What it changes and why (max 600 characters).
+    validations:
+      required: true
+  - type: input
+    id: author
+    attributes:
+      label: Author
+      description: The name shown on the card. Letters, numbers and dashes.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Device profile it was made on (ayn-thor, …).
+      placeholder: ayn-thor
+  - type: input
+    id: game-version
+    attributes:
+      label: Game version
+      description: As the game shows it, if you know it.
+  - type: dropdown
+    id: license
+    attributes:
+      label: Licence
+      description: How others may use your layout.
+      options:
+        - CC0-1.0
+        - CC-BY-4.0
+    validations:
+      required: true
+  - type: textarea
+    id: layout
+    attributes:
+      label: Layout
+      description: The layout file (filled in by the app).
+      render: json
+    validations:
+      required: true
