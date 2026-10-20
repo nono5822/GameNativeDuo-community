@@ -235,7 +235,7 @@ def dump(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
-def build(out, base_url, signing_key):
+def build(out, base_url, signing_key, ratings=None):
     packages, problems = validate(fetch_remote=True)
     if problems:
         report(problems)
@@ -256,6 +256,8 @@ def build(out, base_url, signing_key):
     for where, folder, m in packages:
         entry = {k: v for k, v in m.items() if k not in ("files", "screenshots", "$schema", "format", "version")}
         entry["updated"] = git_date(folder)
+        if ratings and m["id"] in ratings:
+            entry["rating"] = ratings[m["id"]]
         files = []
         for f in m["files"]:
             if "url" in f:
@@ -370,6 +372,7 @@ def main():
     b = sub.add_parser("build")
     b.add_argument("--out", type=Path, default=ROOT / "site")
     b.add_argument("--base-url", default="https://nono5822.github.io/GameNativeDuo-community")
+    b.add_argument("--ratings", type=Path, help="ratings.json from tools/ratings.py")
     r = sub.add_parser("verify")
     r.add_argument("--site", type=Path, default=ROOT / "site")
     r.add_argument("--public-key", help="base64 public key to check against (default: the site's own)")
@@ -385,7 +388,8 @@ def main():
             sys.exit(1)
         print(f"OK: {len(packages)} package(s)")
     elif args.command == "build":
-        build(args.out, args.base_url, load_private_key())
+        ratings = json.loads(args.ratings.read_text()) if args.ratings and args.ratings.is_file() else None
+        build(args.out, args.base_url, load_private_key(), ratings)
     elif args.command == "verify":
         verify(args.site, args.public_key)
     elif args.command == "rehash":

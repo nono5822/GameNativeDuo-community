@@ -4,10 +4,13 @@ name: Publish index
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 4 * * *" # nightly: ratings change without commits
   workflow_dispatch:
 
 permissions:
   contents: read
+  discussions: write # one discussion per package; its reactions are the rating
   pages: write
   id-token: write
 
@@ -29,10 +32,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r tools/requirements.txt
+      - name: Ratings from discussions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python tools/ratings.py --out "$RUNNER_TEMP/ratings.json"
       - name: Build and sign
         env:
           DUO_INDEX_SIGNING_KEY: ${{ secrets.DUO_INDEX_SIGNING_KEY }}
-        run: python tools/duo_index.py build --out site
+        run: python tools/duo_index.py build --out site --ratings "$RUNNER_TEMP/ratings.json"
       - name: Verify against the key the app pins
         run: python tools/duo_index.py verify --site site --public-key "$(cat keys/index-public-key.txt)"
       - uses: actions/configure-pages@v5
