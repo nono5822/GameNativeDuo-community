@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.bot-test",
+  "kind": "ui-layout",
+  "packageVersion": "1.0.0",
+  "game": {
+    "store": "steam",
+    "appId": "433340",
+    "title": "Slime Rancher"
+  },
+  "title": "Bot test",
+  "description": "Pipeline test, will be deleted.",
+  "authors": [
+    "gamenative-duo"
+  ],
+  "license": "CC0-1.0",
+  "files": [
+    {
+      "path": "ui-layout.json",
+      "sha256": "66be0edb3a3ca812f6a63ff965495a45e482fb84710231b46f03ab35d162538a"
+    }
+  ],
+  "requires": {
+    "adapter": "unity-ugui"
+  },
+  "testedOn": [
+    "ayn-thor"
+  ],
+  "tags": [
+    "shared"
+  ]
+}
