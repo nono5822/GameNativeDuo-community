@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.isaac-minimap-below",
+  "kind": "duo-settings",
+  "packageVersion": "0.1.0",
+  "game": {
+    "store": "steam",
+    "appId": "250900",
+    "title": "The Binding of Isaac: Rebirth"
+  },
+  "requires": {
+    "app": ">=0.3"
+  },
+  "title": "Minimap on the bottom screen (experimental)",
+  "description": "No mod: the game runs unchanged on the top screen and the bottom screen shows its minimap, magnified, live. The spot is a first guess: in game, hold two fingers on the bottom screen, Choose bottom view, and drag/pinch to fit.",
+  "authors": [
+    "GameNative Duo"
+  ],
+  "license": "CC0-1.0",
+  "tags": [
+    "experimental",
+    "region-view"
+  ],
+  "files": [
+    {
+      "path": "duo-settings.json",
+      "sha256": "b7ebf95844d6d16a2ae24e99a30c8ae1309c9435f847e29795bb551859d66129"
+    }
+  ]
+}

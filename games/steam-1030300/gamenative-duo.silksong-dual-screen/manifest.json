@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.silksong-dual-screen",
+  "kind": "mod",
+  "packageVersion": "0.3.0",
+  "game": {
+    "store": "steam",
+    "appId": "1030300",
+    "title": "Hollow Knight: Silksong"
+  },
+  "requires": {
+    "adapter": "unity-ugui>=0.3",
+    "app": ">=0.3"
+  },
+  "title": "Dual screen (experimental)",
+  "description": "The world on the top screen; the HUD, inventory and menus on the bottom screen. Uses the same support as Hollow Knight (Team Cherry's camera code); untested on hardware.",
+  "authors": [
+    "GameNative Duo"
+  ],
+  "license": "MIT",
+  "tags": [
+    "experimental"
+  ],
+  "files": [
+    {
+      "path": "README.txt",
+      "sha256": "e2c83ccf7c8df113e575a811a879b0d30b21d2404490b8f73f7d7dfc7c93ab66"
+    }
+  ],
+  "install": {
+    "sharedAssets": {
+      "bepinex": "",
+      "BepInEx-LICENSE.txt": "BepInEx/LICENSE-BepInEx.txt",
+      "BepInEx-NOTICE.txt": "BepInEx/NOTICE-GameNativeDuo.txt",
+      "unity-split": "BepInEx/plugins/GameNativeDuo-split"
+    },
+    "gameFiles": {
+      "README.txt": "BepInEx/plugins/GameNativeDuo-split/README.txt"
+    },
+    "dllOverrides": [
+      "winhttp=n,b"
+    ],
+    "splitLayout": "native"
+  }
+}

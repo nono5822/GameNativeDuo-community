@@ -1,0 +1,7 @@
+{
+  "format": "gamenative-duo/settings",
+  "version": 1,
+  "screenSplit": true,
+  "splitLayout": "region",
+  "region": "0.7800,0.0200,0.2000,0.3000"
+}

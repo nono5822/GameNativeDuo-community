@@ -5,13 +5,38 @@
   "description": "Settings from the container's 'GameNative Duo' tab. Only the fields present are applied.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "version"],
+  "required": [
+    "format",
+    "version"
+  ],
   "properties": {
-    "format": { "const": "gamenative-duo/settings" },
-    "version": { "const": 1 },
-    "screenSplit": { "type": "boolean" },
-    "splitLayout": { "description": "fill: both parts as wide as the game screen; native: each part 1:1 with its display.", "enum": ["fill", "native"] },
-    "nativeTouch": { "type": "boolean" },
-    "bottomPanelEnabled": { "type": "boolean" }
+    "format": {
+      "const": "gamenative-duo/settings"
+    },
+    "version": {
+      "const": 1
+    },
+    "screenSplit": {
+      "type": "boolean"
+    },
+    "splitLayout": {
+      "description": "fill: tall window, both parts as wide as it; native: tall window, each part 1:1 with its display (dual-screen mods); region: the game unchanged on top, a magnified part of it on the bottom screen.",
+      "enum": [
+        "fill",
+        "native",
+        "region"
+      ]
+    },
+    "nativeTouch": {
+      "type": "boolean"
+    },
+    "bottomPanelEnabled": {
+      "type": "boolean"
+    },
+    "region": {
+      "description": "Region view: the part of the game the bottom screen shows, as fractions of the game screen \"x,y,w,h\" (reshaped to the bottom display's shape).",
+      "type": "string",
+      "pattern": "^\\s*0?\\.?[0-9]+(\\.[0-9]+)?\\s*(,\\s*[0-9]*\\.?[0-9]+\\s*){3}$"
+    }
   }
 }

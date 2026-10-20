@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.ror2-dual-screen",
+  "kind": "mod",
+  "packageVersion": "0.3.0",
+  "game": {
+    "store": "steam",
+    "appId": "632360",
+    "title": "Risk of Rain 2"
+  },
+  "requires": {
+    "adapter": "unity-ugui>=0.3",
+    "app": ">=0.3"
+  },
+  "title": "Dual screen (experimental)",
+  "description": "The world and crosshair on the top screen; the HUD (health, items, skills) and menus on the bottom screen, touchable and rearrangeable. Untested on hardware: built from the game's files. Heavy game: use the 75% split resolution.",
+  "authors": [
+    "GameNative Duo"
+  ],
+  "license": "MIT",
+  "tags": [
+    "experimental"
+  ],
+  "files": [
+    {
+      "path": "README.txt",
+      "sha256": "451eac4006849b099626bde03fba08bb8d6a75864a792b397bf1dae3bc697eda"
+    }
+  ],
+  "install": {
+    "sharedAssets": {
+      "bepinex": "",
+      "BepInEx-LICENSE.txt": "BepInEx/LICENSE-BepInEx.txt",
+      "BepInEx-NOTICE.txt": "BepInEx/NOTICE-GameNativeDuo.txt",
+      "unity-split": "BepInEx/plugins/GameNativeDuo-split"
+    },
+    "gameFiles": {
+      "README.txt": "BepInEx/plugins/GameNativeDuo-split/README.txt"
+    },
+    "dllOverrides": [
+      "winhttp=n,b"
+    ],
+    "splitLayout": "native"
+  }
+}

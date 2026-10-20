@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.dead-cells-minimap-below",
+  "kind": "duo-settings",
+  "packageVersion": "0.1.0",
+  "game": {
+    "store": "steam",
+    "appId": "588650",
+    "title": "Dead Cells"
+  },
+  "requires": {
+    "app": ">=0.3"
+  },
+  "title": "Minimap on the bottom screen (experimental)",
+  "description": "No mod: the game runs unchanged on the top screen and the bottom screen shows its minimap corner, magnified, live. The spot is a first guess: in game, hold two fingers on the bottom screen, Choose bottom view, and drag/pinch to fit.",
+  "authors": [
+    "GameNative Duo"
+  ],
+  "license": "CC0-1.0",
+  "tags": [
+    "experimental",
+    "region-view"
+  ],
+  "files": [
+    {
+      "path": "duo-settings.json",
+      "sha256": "f4492d49bea1f3699001b612896ea71a0bbfa159b06d7d55b0233533f4b24619"
+    }
+  ]
+}

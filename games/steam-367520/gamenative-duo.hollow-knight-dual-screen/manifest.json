@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.hollow-knight-dual-screen",
+  "kind": "mod",
+  "packageVersion": "0.3.0",
+  "game": {
+    "store": "steam",
+    "appId": "367520",
+    "title": "Hollow Knight"
+  },
+  "requires": {
+    "adapter": "unity-ugui>=0.3",
+    "app": ">=0.3"
+  },
+  "title": "Dual screen (experimental)",
+  "description": "The world on the top screen; the HUD (masks, soul, geo), inventory, map and menus on the bottom screen, which you can rearrange in game. Untested on hardware: built from the game's files.",
+  "authors": [
+    "GameNative Duo"
+  ],
+  "license": "MIT",
+  "tags": [
+    "experimental"
+  ],
+  "files": [
+    {
+      "path": "README.txt",
+      "sha256": "31e2487243761c8342e53328e5cd294626afe26f035276a8649d51b6954bc091"
+    }
+  ],
+  "install": {
+    "sharedAssets": {
+      "bepinex": "",
+      "BepInEx-LICENSE.txt": "BepInEx/LICENSE-BepInEx.txt",
+      "BepInEx-NOTICE.txt": "BepInEx/NOTICE-GameNativeDuo.txt",
+      "unity-split": "BepInEx/plugins/GameNativeDuo-split"
+    },
+    "gameFiles": {
+      "README.txt": "BepInEx/plugins/GameNativeDuo-split/README.txt"
+    },
+    "dllOverrides": [
+      "winhttp=n,b"
+    ],
+    "splitLayout": "native"
+  }
+}
