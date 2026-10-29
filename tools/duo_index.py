@@ -50,6 +50,18 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 MAX_DATA_FILE = 256 * 1024
 MAX_IMAGE = 1024 * 1024
 MAX_MOD_FILE = 20 * 1024 * 1024  # bigger mod binaries go to GitHub Releases (files[].url)
+# Maintainer-owned list of official package ids (CODEOWNERS). Never read from manifests: the index's `official`
+# list comes only from here, and the gamenative-duo. namespace is reserved for ids listed here.
+OFFICIAL_FILE = ROOT / "OFFICIAL"
+RESERVED_PREFIX = "gamenative-duo."
+
+
+def official_ids():
+    """Package ids in OFFICIAL (one per line, '#' comments and blank lines ignored)."""
+    if not OFFICIAL_FILE.is_file():
+        return set()
+    lines = (line.split("#", 1)[0].strip() for line in OFFICIAL_FILE.read_text(encoding="utf-8").splitlines())
+    return {line for line in lines if line}
 
 
 class Problems:
@@ -109,6 +121,7 @@ def validate(fetch_remote=False):
     manifest_schema = load_schema("package.schema.json")
     file_schemas = {kind: load_schema(schema) for kind, (_, schema) in MAIN_FILE.items()}
     packages, seen_ids = [], {}
+    official = official_ids()
 
     for where, folder in package_dirs():
         rel = folder.relative_to(ROOT).as_posix()
@@ -133,6 +146,8 @@ def validate(fetch_remote=False):
         if pid in seen_ids:
             problems.add(rel, f"id '{pid}' already used by {seen_ids[pid]}")
         seen_ids[pid] = rel
+        if pid.startswith(RESERVED_PREFIX) and pid not in official:
+            problems.add(rel, f"the '{RESERVED_PREFIX}' namespace is reserved for official packages (listed in OFFICIAL)")
         if where == "device" and kind != "device-profile":
             problems.add(rel, "only device-profile packages go in devices/")
         if where == "game":
@@ -180,6 +195,8 @@ def validate(fetch_remote=False):
                     if not any(p == src or p.startswith(src.rstrip("/") + "/") for p in declared):
                         problems.add(rel, f"install.{section}: '{src}' matches no entry of files")
         packages.append((where, folder, manifest))
+    for pid in sorted(official - set(seen_ids)):
+        problems.add("OFFICIAL", f"'{pid}' is not a package in this repo")
     return packages, problems
 
 
@@ -253,6 +270,7 @@ def build(out, base_url, signing_key, ratings=None):
         return digest, f"{base}/blobs/{digest}", path.stat().st_size
 
     games, devices = {}, []
+    official = official_ids()
     for where, folder, m in packages:
         entry = {k: v for k, v in m.items() if k not in ("files", "screenshots", "$schema", "format", "version")}
         entry["updated"] = git_date(folder)
@@ -280,6 +298,7 @@ def build(out, base_url, signing_key, ratings=None):
         game.pop("builds", None)
         write_signed(site / "games" / f"{key}.json", {
             "format": "gamenative-duo/index-game", "version": 1, "key": key, "game": game, "packages": entries,
+            "official": sorted(e["id"] for e in entries if e["id"] in official),
         }, signing_key)
         catalog_games.append({
             "key": key, "game": game, "packages": len(entries),

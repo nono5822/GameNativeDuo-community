@@ -17,5 +17,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r tools/requirements.txt
+      - name: Rating rules (unit tests)
+        run: python tools/test_rating_rules.py
       - name: Validate (schemas, hashes, sizes, paths, licences; downloads release assets)
         run: python tools/duo_index.py validate --fetch-remote

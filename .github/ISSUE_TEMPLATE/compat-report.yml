@@ -1,0 +1,48 @@
+name: Compatibility report
+description: How a package runs on your device. Usually opened pre-filled from GameNative Duo.
+title: "Report: "
+labels: ["compat-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Only your newest report per package version and device counts. Counts show in GameNative Duo next to the
+        package's rating after the nightly publish. To vote, react 👍 or 👎 on the package's discussion instead.
+  - type: input
+    id: package
+    attributes:
+      label: Package
+      description: Package id, e.g. gamenative-duo.isaac-minimap-below
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Package version you used (the app fills it in)
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Device profile id, e.g. ayn-thor (the app fills it in)
+    validations:
+      required: true
+  - type: input
+    id: result
+    attributes:
+      label: Result
+      description: "works, issues (works with problems) or broken"
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      description: Game key, e.g. steam-250900
+  - type: textarea
+    id: notes
+    attributes:
+      label: What did you see?
+      description: Optional. What worked, what did not, game version.

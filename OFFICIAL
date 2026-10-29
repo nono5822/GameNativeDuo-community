@@ -1,0 +1,11 @@
+# Official GameNative Duo packages: one package id per line. Maintainers only (see .github/CODEOWNERS).
+# The index builder writes these into each game's `official` list (signed); the app shows them with the official
+# badge. Package ids starting with gamenative-duo. must be listed here.
+gamenative-duo.ayn-thor
+gamenative-duo.crosshair-on-top
+gamenative-duo.dead-cells-minimap-below
+gamenative-duo.hollow-knight-dual-screen
+gamenative-duo.isaac-minimap-below
+gamenative-duo.recommended-settings
+gamenative-duo.ror2-dual-screen
+gamenative-duo.silksong-dual-screen

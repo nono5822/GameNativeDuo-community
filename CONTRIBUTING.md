@@ -24,6 +24,7 @@
      "title": "Compact HUD",
      "description": "Hotbar in the middle, health and energy in the corner, crosshair on top.",
      "authors": ["alex"],
+     "githubLogins": ["alex-gh"],
      "license": "CC0-1.0",
      "screenshots": ["top.jpg", "bottom.jpg"],
      "files": [{ "path": "ui-layout.json", "sha256": "" }]
@@ -52,5 +53,19 @@
 
 ## Updating a package
 
-Change its files, bump `packageVersion` (semantic versioning), run `rehash` and `validate`, open a pull request.
+Change its files, bump `packageVersion` (semantic versioning), add a `changelog` entry (`{version, date, notes}`,
+newest first; the app shows the newest five), run `rehash` and `validate`, open a pull request.
 Keep the `id`: the app tracks updates by it.
+
+## Ratings and reports
+
+Every package gets a discussion; the nightly publish folds its 👍/👎 into the index with these rules
+(`tools/rating_rules.py`, unit-tested in CI):
+
+- one vote per GitHub account: an account with both 👍 and 👎 counts as neither;
+- the package's own authors (`githubLogins`; the share bot fills it in) and bots are not counted;
+- compatibility reports (the "Compatibility report" issue form, opened pre-filled from the app) count once per
+  account and device for the package's current version, newest report wins. An update starts from zero.
+
+Package ids starting with `gamenative-duo.` are reserved for official packages: they must be listed in `OFFICIAL`,
+which only maintainers change. The app shows the official badge only for those.

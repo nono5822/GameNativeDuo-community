@@ -1,0 +1,6 @@
+# Changes here decide what the app trusts: they need a maintainer's review (turn on "Require review from Code
+# Owners" in the branch protection of main).
+/OFFICIAL @nono5822
+/keys/ @nono5822
+/tools/ @nono5822
+/.github/ @nono5822

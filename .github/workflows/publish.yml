@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   discussions: write # one discussion per package; its reactions are the rating
+  issues: read # compatibility reports
   pages: write
   id-token: write
 
