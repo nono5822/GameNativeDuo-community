@@ -43,6 +43,8 @@ MAIN_FILE = {
     "ui-layout": ("ui-layout.json", "ui-layout.schema.json"),
     "duo-settings": ("duo-settings.json", "duo-settings.schema.json"),
     "device-profile": ("device-profile.json", "device-profile.schema.json"),
+    # Configures the official Unity adapter (GameNative Duo duo/docs/game-profiles.md): data, no code review.
+    "game-profile": ("profile.json", "game-profile.schema.json"),
 }
 DATA_KINDS = set(MAIN_FILE)
 DATA_EXTENSIONS = {".json"}

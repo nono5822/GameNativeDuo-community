@@ -37,7 +37,8 @@
         "ui-layout",
         "duo-settings",
         "device-profile",
-        "mod"
+        "mod",
+        "game-profile"
       ]
     },
     "packageVersion": {

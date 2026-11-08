@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/nono5822/GameNativeDuo-community/main/schema/game-profile.schema.json",
+  "title": "GameNative Duo game profile",
+  "description": "Configures the official Unity adapter for one game (duo/docs/game-profiles.md). Data only.",
+  "type": "object",
+  "required": ["format", "version", "game", "engine"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "format": {"const": "gamenative-duo/game-profile"},
+    "version": {"const": 1},
+    "game": {"type": "string", "pattern": "^[a-z]+-[A-Za-z0-9_.-]+$"},
+    "engine": {"enum": ["unity-ugui"]},
+    "builds": {"type": "array", "items": {"type": "string", "maxLength": 40}, "maxItems": 20},
+    "cameras": {
+      "type": "object",
+      "properties": {
+        "ui": {"$ref": "#/$defs/cameraMatchers"},
+        "world": {"$ref": "#/$defs/cameraMatchers"}
+      }
+    },
+    "canvases": {
+      "type": "array", "maxItems": 100,
+      "items": {
+        "type": "object", "required": ["path", "screen"], "additionalProperties": false,
+        "properties": {"path": {"$ref": "#/$defs/glob"}, "screen": {"$ref": "#/$defs/screen"}}
+      }
+    },
+    "stayOnTop": {"type": "array", "items": {"$ref": "#/$defs/glob"}, "maxItems": 100},
+    "elements": {
+      "type": "object", "maxProperties": 500,
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "maxLength": 60},
+          "features": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "screens": {"type": "array", "items": {"$ref": "#/$defs/screen"}, "minItems": 1, "uniqueItems": true},
+              "move": {"type": "boolean"},
+              "scale": {
+                "oneOf": [
+                  {"type": "boolean"},
+                  {"type": "object", "required": ["min", "max"], "additionalProperties": false,
+                   "properties": {"min": {"type": "number", "minimum": 0.25, "maximum": 4}, "max": {"type": "number", "minimum": 0.25, "maximum": 4}}}
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "state": {
+      "type": "array", "maxItems": 200,
+      "items": {
+        "type": "object", "required": ["key", "from"], "additionalProperties": false,
+        "properties": {
+          "key": {"type": "string", "pattern": "^[a-z0-9]+(\\.[A-Za-z0-9_]+)+$", "maxLength": 96},
+          "from": {
+            "type": "object", "required": ["type", "member"], "additionalProperties": false,
+            "properties": {
+              "type": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.`+]*$", "maxLength": 200},
+              "member": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$", "maxLength": 200}
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "screen": {"enum": ["bottom", "top", "hidden"]},
+    "glob": {"type": "string", "minLength": 1, "maxLength": 200},
+    "cameraMatchers": {
+      "type": "array", "maxItems": 20,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "properties": {"name": {"$ref": "#/$defs/glob"}, "layer": {"type": "string", "maxLength": 60}, "only": {"type": "boolean"}}
+      }
+    }
+  }
+}

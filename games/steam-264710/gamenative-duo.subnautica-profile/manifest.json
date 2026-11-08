@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schema/package.schema.json",
+  "format": "gamenative-duo/package",
+  "version": 1,
+  "id": "gamenative-duo.subnautica-profile",
+  "kind": "game-profile",
+  "packageVersion": "1.0.0",
+  "game": {"store": "steam", "appId": "264710", "title": "Subnautica"},
+  "requires": {"adapter": "unity-ugui>=0.4"},
+  "title": "Subnautica game profile",
+  "description": "UI and world cameras, crosshairs on top, and health, depth and underwater for companion cards.",
+  "authors": ["GameNative Duo"],
+  "license": "CC0-1.0",
+  "files": [{"path": "profile.json", "sha256": "9f99966fd3239a708e2fc7b0cd114bafec1eb5b5cd60702b13d82450efc71dcb"}]
+}

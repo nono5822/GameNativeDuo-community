@@ -1,0 +1,19 @@
+{
+  "format": "gamenative-duo/game-profile",
+  "version": 1,
+  "game": "steam-264710",
+  "engine": "unity-ugui",
+  "cameras": {
+    "ui": [{"name": "UI Camera"}, {"name": "MainCamera (UI)"}],
+    "world": [{"name": "Main Camera"}, {"name": "MainCamera"}, {"name": "Clear Camera"}]
+  },
+  "stayOnTop": ["**/Crosshair", "**/HandReticle"],
+  "elements": {
+    "uGUI(Clone)/ScreenCanvas/HUD/Content/HandReticle": {"name": "Hand reticle"}
+  },
+  "state": [
+    {"key": "sn.health", "from": {"type": "Player", "member": "main.liveMixin.health"}},
+    {"key": "sn.depth", "from": {"type": "Player", "member": "main.depthLevel"}},
+    {"key": "sn.underwater", "from": {"type": "Player", "member": "main.isUnderwater"}}
+  ]
+}
