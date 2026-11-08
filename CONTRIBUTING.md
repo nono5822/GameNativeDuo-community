@@ -68,6 +68,27 @@
   loader files in `loaders.json` (BepInEx, Lovely). A maintainer reviews the code before merge. State the licence of
   everything you include.
 
+## Signing (author key)
+
+A code mod must be signed by its author; any package may be. The key is an SSH ed25519 key: one you already use
+(GitHub lists yours at `github.com/<you>.keys`) or a new one from `duo keygen`. After every change (and `rehash`):
+
+```bash
+duo pack --sign games/steam-367520/alex.my-mod          # or: python tools/duo_index.py sign <folder> --key ~/.ssh/id_ed25519
+```
+
+This sets `author.key` the first time and writes `manifest.json.sig`. The app remembers the key when someone installs
+the mod: an update signed by another key asks them again ("This mod changed owner"). To move to a new key, let the old
+one hand the package over, then sign with the new one:
+
+```bash
+python tools/duo_index.py handover <folder> --old-key ~/.ssh/old_ed25519 --new-key ~/.ssh/new_ed25519.pub
+duo pack --sign <folder> --key ~/.ssh/new_ed25519
+```
+
+CI refuses a changed key without that handover. A lost key cannot be recovered this way: ask a maintainer, and users
+will be asked again.
+
 ## Updating a package
 
 Change its files, bump `packageVersion` (semantic versioning), add a `changelog` entry (`{version, date, notes}`,

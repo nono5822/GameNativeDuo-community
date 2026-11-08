@@ -372,6 +372,42 @@
           }
         }
       ]
+    },
+    "author": {
+      "description": "The author's signing key (an SSH ed25519 key: duo keygen, or one you have). manifest.json.sig signs this manifest with it (duo pack --sign). The app remembers the key at first install: an update signed by another key asks the user again. Required for mods with a build.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/sshKey"
+        },
+        "history": {
+          "description": "Earlier keys of this package, oldest first. Each handover is that key's SSH signature (namespace gamenative-duo-key-handover) over the next key's line plus a newline: tools/duo_index.py handover.",
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "handover"
+            ],
+            "properties": {
+              "key": {
+                "$ref": "#/$defs/sshKey"
+              },
+              "handover": {
+                "type": "string",
+                "maxLength": 2000,
+                "pattern": "^-----BEGIN SSH SIGNATURE-----\\n[A-Za-z0-9+/=\\n]+-----END SSH SIGNATURE-----\\n?$"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -390,6 +426,11 @@
           "$ref": "#/$defs/relPath"
         }
       ]
+    },
+    "sshKey": {
+      "description": "An OpenSSH ed25519 public key without comment: ssh-ed25519 AAAA...",
+      "type": "string",
+      "pattern": "^ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI[A-Za-z0-9+/]{43}$"
     }
   },
   "allOf": [

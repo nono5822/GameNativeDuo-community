@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # author keys are checked against the approved state (the base branch, or the previous commit)
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -26,6 +28,8 @@ jobs:
           python tools/test_official.py
           python tools/test_code_trust.py
       - name: Validate (schemas, hashes, sizes, paths, licences; downloads release assets)
-        run: python tools/duo_index.py validate --fetch-remote
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: python tools/duo_index.py validate --fetch-remote --base-ref "$BASE_REF"
       - name: Build code mods from source, twice, and compare (no secrets in this workflow)
         run: python tools/build_mods.py --out "$RUNNER_TEMP/built" --reproducible

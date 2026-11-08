@@ -5,7 +5,9 @@
     python tools/duo_index.py build --out site --built built    # on main; signs with $DUO_INDEX_SIGNING_KEY
     python tools/duo_index.py verify --site site            # checks every signature and blob hash
     python tools/duo_index.py rehash games/steam-433340/me.my-layout   # fill in files[].sha256 after editing
-    python tools/duo_index.py keygen                        # once: prints a new private key (keep it secret)
+    python tools/duo_index.py sign games/steam-367520/me.my-mod --key ~/.ssh/id_ed25519   # author signature, after rehash
+    python tools/duo_index.py handover PKG --old-key OLD --new-key NEW.pub                 # move a package to a new key
+    python tools/duo_index.py keygen                        # once: prints a new index signing key (maintainers)
 
 Layout of the repo:
     games/<store>-<appId>/<package-id>/manifest.json (+ files)   layouts, settings, mods for one game
@@ -27,6 +29,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -64,6 +67,10 @@ BINARY_EXTENSIONS = {".dll", ".exe", ".so", ".dylib", ".asi", ".bin", ".pyd", ".
 BINARY_MAGIC = (b"MZ", b"\x7fELF", b"\xca\xfe\xba\xbe", b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\x00asm", b"PK\x03\x04")
 SCRIPT_EXTENSIONS = {".lua", ".toml", ".json", ".txt", ".md", ".cfg", ".ini", ".xml", ".yaml", ".yml"}
 SOURCE_DIR = "src"
+# Author signatures (ssh-keygen -Y): the manifest, and an old key handing a package over to a new one.
+SIG_FILE = "manifest.json.sig"
+SIG_NAMESPACE = "gamenative-duo-package"
+HANDOVER_NAMESPACE = "gamenative-duo-key-handover"
 MAX_SOURCE = 5 * 1024 * 1024
 
 
@@ -100,6 +107,80 @@ def is_binary(path):
     except OSError:
         return False
     return any(head.startswith(m) for m in BINARY_MAGIC)
+
+
+def ssh_verify(key, namespace, data, signature):
+    """True when signature (armored SSHSIG) is key's signature over data in namespace."""
+    with tempfile.TemporaryDirectory() as d:
+        allowed, sig = Path(d) / "allowed", Path(d) / "sig"
+        allowed.write_text(f"author {key}\n")
+        sig.write_text(signature if signature.endswith("\n") else signature + "\n")
+        try:
+            r = subprocess.run(["ssh-keygen", "-Y", "verify", "-f", str(allowed), "-I", "author", "-n", namespace, "-s", str(sig)],
+                               input=data, capture_output=True)
+        except OSError:
+            return False
+        return r.returncode == 0
+
+
+def ssh_sign(private_key, namespace, data):
+    """Armored SSHSIG of data by private_key (ssh-keygen asks for its passphrase if it has one)."""
+    with tempfile.TemporaryDirectory() as d:
+        msg = Path(d) / "msg"
+        msg.write_bytes(data)
+        subprocess.run(["ssh-keygen", "-Y", "sign", "-q", "-f", str(private_key), "-n", namespace, str(msg)], check=True)
+        return (Path(d) / "msg.sig").read_text()
+
+
+def author_chain(manifest):
+    """Every key of the package, oldest first, the current one last; empty without an author."""
+    author = manifest.get("author")
+    if not author:
+        return []
+    return [h["key"] for h in author.get("history", [])] + [author["key"]]
+
+
+def check_author(problems, rel, folder, manifest, base=None):
+    """The manifest signature, the handover chain, and continuity with the approved version (base)."""
+    author = manifest.get("author")
+    base_chain = author_chain(base or {})
+    if not author:
+        if manifest["kind"] == "mod" and "build" in manifest:
+            problems.add(rel, "a code mod needs an author key: author.key and manifest.json.sig (duo keygen, duo pack --sign)")
+        if base_chain:
+            problems.add(rel, "the approved version has an author key: it cannot be removed")
+        if (folder / SIG_FILE).exists():
+            problems.add(rel, f"{SIG_FILE} without author.key")
+        return
+    chain = author_chain(manifest)
+    if len(set(chain)) != len(chain):
+        problems.add(rel, "author.history repeats a key")
+    sig = folder / SIG_FILE
+    if not sig.is_file():
+        problems.add(rel, f"author.key is set but {SIG_FILE} is missing (duo pack --sign)")
+    elif not ssh_verify(author["key"], SIG_NAMESPACE, (folder / "manifest.json").read_bytes(), sig.read_text()):
+        problems.add(rel, f"{SIG_FILE} is not author.key's signature of this manifest.json (sign again after every change)")
+    for i, h in enumerate(author.get("history", [])):
+        if not ssh_verify(h["key"], HANDOVER_NAMESPACE, (chain[i + 1] + "\n").encode(), h["handover"]):
+            problems.add(rel, f"author.history[{i}]: the handover is not signed by that key")
+    if base_chain and base_chain[-1] != chain[-1]:
+        if base_chain[-1] not in chain[:-1]:
+            problems.add(rel, "the author key changed without a handover from the approved key (tools/duo_index.py handover)")
+        elif chain[:len(base_chain)] != base_chain:
+            problems.add(rel, "author.history must keep the approved version's history and extend it")
+
+
+def base_manifest(rel, ref):
+    """The manifest at rel in git ref (the approved version), or None when it is new."""
+    if not ref:
+        return None
+    r = subprocess.run(["git", "show", f"{ref}:{rel}/manifest.json"], cwd=ROOT, capture_output=True)
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return None
 
 
 class Problems:
@@ -153,7 +234,7 @@ def inside(folder, rel):
 
 # ---- validate ---------------------------------------------------------------------------------------------------
 
-def validate(fetch_remote=False):
+def validate(fetch_remote=False, base_ref=None):
     """Returns (packages, problems). packages: list of (folder kind, folder, manifest)."""
     problems = Problems()
     manifest_schema = load_schema("package.schema.json")
@@ -196,7 +277,7 @@ def validate(fetch_remote=False):
 
         declared = {f["path"] for f in manifest["files"]}
         screenshots = manifest.get("screenshots", [])
-        listed = declared | set(screenshots) | {"manifest.json"}
+        listed = declared | set(screenshots) | {"manifest.json", SIG_FILE}
         build = manifest.get("build")
         own_source = build is not None and "source" not in build
 
@@ -208,6 +289,7 @@ def validate(fetch_remote=False):
             if relpath not in listed:
                 problems.add(rel, f"undeclared file {path.relative_to(folder).as_posix()} (list it in files or screenshots, or remove it)")
 
+        check_author(problems, rel, folder, manifest, base_manifest(rel, base_ref))
         loaders = loader_hashes()
         for f in manifest["files"]:
             check_file(problems, rel, folder, kind, f, fetch_remote, loaders)
@@ -380,7 +462,11 @@ def build(out, base_url, signing_key, ratings=None, built_dir=None):
     games, devices = {}, []
     official = official_ids()
     for where, folder, m in packages:
-        entry = {k: v for k, v in m.items() if k not in ("files", "screenshots", "$schema", "format", "version")}
+        entry = {k: v for k, v in m.items() if k not in ("files", "screenshots", "$schema", "format", "version", "author")}
+        if author_chain(m):
+            # Checked by validate (signature, handovers, continuity): the app pins authorKey and accepts any of authorKeys.
+            entry["authorKey"] = m["author"]["key"]
+            entry["authorKeys"] = author_chain(m)
         entry["updated"] = git_date(folder)
         if ratings and m["id"] in ratings:
             entry["rating"] = ratings[m["id"]]
@@ -487,6 +573,44 @@ def rehash(folder):
     print(f"Updated {path}")
 
 
+def public_key_line(path):
+    """'ssh-ed25519 AAAA...' from a .pub file (the comment dropped)."""
+    parts = Path(path).read_text().split()
+    if len(parts) < 2 or parts[0] != "ssh-ed25519":
+        sys.exit(f"{path}: not an ssh-ed25519 public key")
+    return f"{parts[0]} {parts[1]}"
+
+
+def sign(folder, private_key):
+    """Writes manifest.json.sig; sets author.key from the key's .pub when the manifest has none."""
+    path = folder / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    key = public_key_line(str(private_key) + ".pub")
+    current = (manifest.get("author") or {}).get("key")
+    if current is None:
+        manifest["author"] = {"key": key}
+        path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    elif current != key:
+        sys.exit(f"{private_key} is not author.key: sign with the package's key, or hand it over first (handover)")
+    (folder / SIG_FILE).write_text(ssh_sign(private_key, SIG_NAMESPACE, path.read_bytes()))
+    print(f"Signed {path} ({SIG_FILE})")
+
+
+def handover(folder, old_key, new_pub):
+    """The current key signs the new key; the new key becomes author.key. Sign again with the new key afterwards."""
+    path = folder / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    author = manifest.get("author") or sys.exit("the package has no author.key: just sign it (sign)")
+    if public_key_line(str(old_key) + ".pub") != author["key"]:
+        sys.exit(f"{old_key} is not the current author.key")
+    new = public_key_line(new_pub)
+    signature = ssh_sign(old_key, HANDOVER_NAMESPACE, (new + "\n").encode())
+    author.setdefault("history", []).append({"key": author["key"], "handover": signature})
+    author["key"] = new
+    path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Handed {manifest['id']} over to the new key. Now sign it with the new key: duo_index.py sign {folder} --key <new private key>")
+
+
 def report(problems):
     print(f"{len(problems.items)} problem(s):", file=sys.stderr)
     for item in problems.items:
@@ -504,6 +628,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     v = sub.add_parser("validate")
     v.add_argument("--fetch-remote", action="store_true", help="also download release assets and check their sha256")
+    v.add_argument("--base-ref", help="git ref of the approved state (a PR's base): author keys must continue from it")
     b = sub.add_parser("build")
     b.add_argument("--out", type=Path, default=ROOT / "site")
     b.add_argument("--base-url", default="https://nono5822.github.io/GameNativeDuo-community")
@@ -514,11 +639,18 @@ def main():
     r.add_argument("--public-key", help="base64 public key to check against (default: the site's own)")
     h = sub.add_parser("rehash")
     h.add_argument("package", type=Path, help="package folder")
+    g = sub.add_parser("sign", help="sign a package's manifest.json with the author's SSH key (after rehash)")
+    g.add_argument("package", type=Path)
+    g.add_argument("--key", type=Path, required=True, help="private key file (its .pub must be author.key)")
+    o = sub.add_parser("handover", help="hand a package over to a new key, signed by the current one")
+    o.add_argument("package", type=Path)
+    o.add_argument("--old-key", type=Path, required=True, help="private key file of the current author.key")
+    o.add_argument("--new-key", type=Path, required=True, help="public key file (.pub) of the new key")
     sub.add_parser("keygen")
     args = parser.parse_args()
 
     if args.command == "validate":
-        packages, problems = validate(args.fetch_remote)
+        packages, problems = validate(args.fetch_remote, args.base_ref)
         if problems:
             report(problems)
             sys.exit(1)
@@ -530,6 +662,10 @@ def main():
         verify(args.site, args.public_key)
     elif args.command == "rehash":
         rehash(args.package)
+    elif args.command == "sign":
+        sign(args.package, args.key)
+    elif args.command == "handover":
+        handover(args.package, args.old_key, args.new_key)
     elif args.command == "keygen":
         key = Ed25519PrivateKey.generate()
         raw = key.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())

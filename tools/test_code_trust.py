@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -210,6 +211,86 @@ class ReviewHints(unittest.TestCase):
             (new / "Bridge.cs").write_text("namespace GameNativeDuo.Sdk\n{\n  class B { UdpClient c = new UdpClient(); }\n}")
             diffs = review_flags.file_diffs(old, new)
             self.assertEqual(list(diffs), ["Bridge.cs"])
+
+
+@unittest.skipUnless(shutil.which("ssh-keygen"), "needs OpenSSH")
+class AuthorKeys(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.folder = self.dir / "me.mod"
+        self.folder.mkdir()
+        self.manifest = {"id": "me.mod", "kind": "mod", "packageVersion": "1.0.0"}
+        self.write()
+        self.a, self.b, self.c = (self.keygen(n) for n in "abc")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def keygen(self, name):
+        path = self.dir / name
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", name, "-f", str(path)], check=True)
+        return path
+
+    def write(self):
+        (self.folder / "manifest.json").write_text(json.dumps(self.manifest, indent=2))
+
+    def load(self):
+        self.manifest = json.loads((self.folder / "manifest.json").read_text())
+        return self.manifest
+
+    def problems(self, base=None):
+        p = duo_index.Problems()
+        duo_index.check_author(p, "me.mod", self.folder, self.load(), base)
+        return p.items
+
+    def test_signed_manifest_passes_and_any_change_breaks_it(self):
+        duo_index.sign(self.folder, self.a)
+        self.assertEqual(self.load()["author"]["key"], duo_index.public_key_line(str(self.a) + ".pub"))
+        self.assertEqual(self.problems(), [])
+        self.manifest["packageVersion"] = "1.0.1"
+        self.write()
+        self.assertTrue(any("not author.key's signature" in i for i in self.problems()))
+
+    def test_code_mod_needs_a_key(self):
+        self.manifest["build"] = {"engine": "scripts", "outputs": {"a.lua": "a.lua"}}
+        self.write()
+        self.assertTrue(any("needs an author key" in i for i in self.problems()))
+
+    def test_handover_chain_continues_the_approved_key(self):
+        duo_index.sign(self.folder, self.a)
+        approved = dict(self.load())
+        duo_index.handover(self.folder, self.a, str(self.b) + ".pub")
+        duo_index.sign(self.folder, self.b)
+        self.assertEqual(self.problems(base=approved), [])
+        self.assertEqual(duo_index.author_chain(self.load()), [approved["author"]["key"], self.load()["author"]["key"]])
+
+    def test_new_key_without_handover_is_refused(self):
+        duo_index.sign(self.folder, self.a)
+        approved = dict(self.load())
+        self.manifest["author"] = {"key": duo_index.public_key_line(str(self.c) + ".pub")}
+        self.write()
+        duo_index.sign(self.folder, self.c)
+        self.assertTrue(any("without a handover" in i for i in self.problems(base=approved)))
+
+    def test_forged_handover_is_refused(self):
+        duo_index.sign(self.folder, self.a)
+        approved = dict(self.load())
+        # c signs the handover but claims to be a: the signature does not match a's key.
+        fake = duo_index.ssh_sign(self.c, duo_index.HANDOVER_NAMESPACE, (duo_index.public_key_line(str(self.c) + ".pub") + "\n").encode())
+        self.manifest["author"] = {"key": duo_index.public_key_line(str(self.c) + ".pub"),
+                                   "history": [{"key": approved["author"]["key"], "handover": fake}]}
+        self.write()
+        duo_index.sign(self.folder, self.c)
+        self.assertTrue(any("handover is not signed" in i for i in self.problems(base=approved)))
+
+    def test_removing_the_key_is_refused(self):
+        duo_index.sign(self.folder, self.a)
+        approved = dict(self.load())
+        (self.folder / "manifest.json.sig").unlink()
+        self.manifest.pop("author")
+        self.write()
+        self.assertTrue(any("cannot be removed" in i for i in self.problems(base=approved)))
 
 
 if __name__ == "__main__":
