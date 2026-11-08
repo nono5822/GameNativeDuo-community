@@ -2,7 +2,7 @@
 """GameNative Duo community packages: validate the repo, build the signed index, verify a built index.
 
     python tools/duo_index.py validate                      # every PR
-    python tools/duo_index.py build --out site --base-url URL   # on main; signs with $DUO_INDEX_SIGNING_KEY
+    python tools/duo_index.py build --out site --built built    # on main; signs with $DUO_INDEX_SIGNING_KEY
     python tools/duo_index.py verify --site site            # checks every signature and blob hash
     python tools/duo_index.py rehash games/steam-433340/me.my-layout   # fill in files[].sha256 after editing
     python tools/duo_index.py keygen                        # once: prints a new private key (keep it secret)
@@ -351,8 +351,17 @@ def dump(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
-def build(out, base_url, signing_key, ratings=None):
+def build(out, base_url, signing_key, ratings=None, built_dir=None):
     packages, problems = validate(fetch_remote=True)
+    if problems:
+        report(problems)
+        sys.exit(1)
+    built = json.loads((built_dir / "built.json").read_text()) if built_dir else {}
+    for _, _, m in packages:
+        if m["kind"] == "mod" and "build" in m:
+            b = built.get(m["id"])
+            if b is None or b["packageVersion"] != m["packageVersion"]:
+                problems.add(m["id"], "not built for this version (run tools/build_mods.py and pass --built)")
     if problems:
         report(problems)
         sys.exit(1)
@@ -382,6 +391,14 @@ def build(out, base_url, signing_key, ratings=None):
             else:
                 digest, url, size = blob(folder / f["path"])
                 files.append({"path": f["path"], "sha256": digest, "url": url, "size": size})
+        if m["id"] in built:
+            # CI-built outputs (tools/build_mods.py, a job without secrets): the only code the index lists.
+            for path, o in sorted(built[m["id"]]["outputs"].items()):
+                digest, url, size = blob(built_dir / "files" / o["sha256"])
+                if digest != o["sha256"]:
+                    sys.exit(f"{m['id']}: built file {path} does not match built.json")
+                files.append({"path": path, "sha256": digest, "url": url, "size": size})
+            entry["builtFrom"] = built[m["id"]]["source"]
         entry["files"] = files
         entry["screenshots"] = [blob(folder / s)[1] for s in m.get("screenshots", [])]
         if where == "device":
@@ -491,6 +508,7 @@ def main():
     b.add_argument("--out", type=Path, default=ROOT / "site")
     b.add_argument("--base-url", default="https://nono5822.github.io/GameNativeDuo-community")
     b.add_argument("--ratings", type=Path, help="ratings.json from tools/ratings.py")
+    b.add_argument("--built", type=Path, help="output folder of tools/build_mods.py (needed when mods have a build)")
     r = sub.add_parser("verify")
     r.add_argument("--site", type=Path, default=ROOT / "site")
     r.add_argument("--public-key", help="base64 public key to check against (default: the site's own)")
@@ -507,7 +525,7 @@ def main():
         print(f"OK: {len(packages)} package(s)")
     elif args.command == "build":
         ratings = json.loads(args.ratings.read_text()) if args.ratings and args.ratings.is_file() else None
-        build(args.out, args.base_url, load_private_key(), ratings)
+        build(args.out, args.base_url, load_private_key(), ratings, args.built)
     elif args.command == "verify":
         verify(args.site, args.public_key)
     elif args.command == "rehash":

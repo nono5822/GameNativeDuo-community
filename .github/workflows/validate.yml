@@ -17,6 +17,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r tools/requirements.txt
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.112" # tools/build_mods.py DOTNET_SDK
       - name: Rating rules, OFFICIAL list, code trust (unit tests)
         run: |
           python tools/test_rating_rules.py
@@ -24,3 +27,5 @@ jobs:
           python tools/test_code_trust.py
       - name: Validate (schemas, hashes, sizes, paths, licences; downloads release assets)
         run: python tools/duo_index.py validate --fetch-remote
+      - name: Build code mods from source, twice, and compare (no secrets in this workflow)
+        run: python tools/build_mods.py --out "$RUNNER_TEMP/built" --reproducible

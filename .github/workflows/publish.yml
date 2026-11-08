@@ -20,7 +20,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Code mods from source. A job of its own with no secrets and a read-only token: MSBuild runs the mod's build code,
+  # which must never share a job with the index signing key. Hands over data only (built.json + files by sha256).
+  build-mods:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tools/requirements.txt
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.112" # tools/build_mods.py DOTNET_SDK
+      - run: python tools/build_mods.py --out "$RUNNER_TEMP/built"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: built
+          path: ${{ runner.temp }}/built
+          retention-days: 7
+
   publish:
+    needs: build-mods
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -37,10 +60,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python tools/ratings.py --out "$RUNNER_TEMP/ratings.json"
+      - uses: actions/download-artifact@v4
+        with:
+          name: built
+          path: ${{ runner.temp }}/built
       - name: Build and sign
         env:
           DUO_INDEX_SIGNING_KEY: ${{ secrets.DUO_INDEX_SIGNING_KEY }}
-        run: python tools/duo_index.py build --out site --ratings "$RUNNER_TEMP/ratings.json"
+        run: python tools/duo_index.py build --out site --ratings "$RUNNER_TEMP/ratings.json" --built "$RUNNER_TEMP/built"
       - name: Verify against the key the app pins
         run: python tools/duo_index.py verify --site site --public-key "$(cat keys/index-public-key.txt)"
       - uses: actions/configure-pages@v5

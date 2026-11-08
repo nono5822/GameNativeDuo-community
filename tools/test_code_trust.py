@@ -3,12 +3,14 @@
 import hashlib
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import build_mods  # noqa: E402
 import duo_index  # noqa: E402
 
 CSPROJ = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net46</TargetFramework></PropertyGroup></Project>'
@@ -114,6 +116,49 @@ class Binaries(unittest.TestCase):
         names = set(duo_index.loader_hashes().values())
         self.assertTrue(any(n.startswith("BepInEx 5.4.23.5 winhttp.dll") for n in names))
         self.assertTrue(any(n.startswith("Lovely Injector 0.10.0 winmm.dll") for n in names))
+
+
+class Builder(unittest.TestCase):
+    """tools/build_mods.py: same source, same bytes, from any folder."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.folder = Path(self.tmp.name) / "me.mod"
+        (self.folder / "src").mkdir(parents=True)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def build_twice(self, build):
+        manifest = {"build": build}
+        results = []
+        for name in ("a", "b"):
+            work = Path(self.tmp.name) / name
+            work.mkdir()
+            results.append(build_mods.build_one(self.folder, manifest, work, None))
+        return results
+
+    def test_scripts_are_copied(self):
+        (self.folder / "src/main.lua").write_text("return 1")
+        (source, out), _ = self.build_twice({"engine": "scripts", "outputs": {"main.lua": "mod/main.lua"}})
+        self.assertEqual(source, "package")
+        self.assertEqual(out, {"mod/main.lua": b"return 1"})
+
+    @unittest.skipUnless(shutil.which("dotnet"), "needs the .NET SDK")
+    def test_dotnet_build_is_reproducible_across_folders(self):
+        (self.folder / "src/Mod.csproj").write_text(
+            '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>'
+            "<AssemblyName>Mod</AssemblyName></PropertyGroup></Project>")
+        (self.folder / "src/Plugin.cs").write_text("namespace Mod { public static class P { public static int Answer => 42; } }")
+        build = {"engine": "dotnet", "project": "Mod.csproj", "outputs": {"bin/Release/net10.0/Mod.dll": "plugin/Mod.dll"}}
+        (_, first), (_, second) = self.build_twice(build)
+        self.assertTrue(first["plugin/Mod.dll"].startswith(b"MZ"))
+        self.assertEqual(first, second)
+
+    def test_missing_output_is_an_error(self):
+        (self.folder / "src/main.lua").write_text("return 1")
+        with self.assertRaises(build_mods.BuildError):
+            self.build_twice({"engine": "scripts", "outputs": {"other.lua": "mod/other.lua"}})
 
 
 if __name__ == "__main__":
