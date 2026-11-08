@@ -1,0 +1,6 @@
+{
+  "$comment": "Maintainer-owned (CODEOWNERS). Reference sets builds compile against: game and engine assemblies as stubs (duo stubs: public API, no method bodies, no resources), one zip each, pinned by sha256. Never game files.",
+  "format": "gamenative-duo/refs",
+  "version": 1,
+  "refs": []
+}

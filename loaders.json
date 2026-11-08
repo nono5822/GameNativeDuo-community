@@ -1,0 +1,42 @@
+{
+  "$comment": "Maintainer-owned (CODEOWNERS). The only binaries a package may contain: official loader releases, unmodified, pinned per file. A new loader version is a maintainer PR.",
+  "format": "gamenative-duo/loaders",
+  "version": 1,
+  "loaders": [
+    {
+      "id": "bepinex-5",
+      "name": "BepInEx",
+      "version": "5.4.23.5",
+      "variant": "win_x64",
+      "release": "https://github.com/BepInEx/BepInEx/releases/tag/v5.4.23.5",
+      "license": "MIT",
+      "files": {
+        "BepInEx/core/0Harmony.dll": "1a21cc03424fc82c3dd1346905d16494536b9595ae4162228d99fb7c285c1031",
+        "BepInEx/core/0Harmony20.dll": "c755a5ab2712915a32f9a850d580a8c1b70ff1653bc76600f2767aa8ffccc663",
+        "BepInEx/core/BepInEx.Harmony.dll": "00c8f2ac48593e4d45ce4eb26ce4e68b18113c5c489b38b8bf0850f65830d601",
+        "BepInEx/core/BepInEx.Preloader.dll": "55d3895351a9d16b63b6f35f1c01b44ac650979e853d0bd3a442b92a082af64f",
+        "BepInEx/core/BepInEx.dll": "8255b28902886085c578b9e427d3073c97002db85176d2090cdeda90ef14ce70",
+        "BepInEx/core/HarmonyXInterop.dll": "7ce1342d3afa0334b59a3e38c0aed15e162b9abe9d46f95f34be44af47f3b493",
+        "BepInEx/core/Mono.Cecil.Mdb.dll": "5896d1898f616701fff18f3b2c71e6b844d2390ef9f41e1c5fccce8cb27c698e",
+        "BepInEx/core/Mono.Cecil.Pdb.dll": "174db44a067f58561510af746f3caeb032037762c57a31c8d9ee32db25174984",
+        "BepInEx/core/Mono.Cecil.Rocks.dll": "54ac539fb5ddc8b44c0e9acd0fcb7324f89d1a072edf8ebc1b06dd691e3d3927",
+        "BepInEx/core/Mono.Cecil.dll": "7ae470288fff4a402899c254d0a76cefef55877f5c54f96e83c797cc5bb6e2f6",
+        "BepInEx/core/MonoMod.RuntimeDetour.dll": "40e49bb314391cd7bddc2644f8553eeba92c194b940836b103df16955c464e0c",
+        "BepInEx/core/MonoMod.Utils.dll": "9d1495f147ac93c4f81f84538c1a326e8f8a6aefc78d6289d798f3ce1162c5e9",
+        "doorstop_config.ini": "4d5c6dfa0f771c6a5b1b0c559aca0bd0ece7d08b08fff894708dc3b73ce73cfc",
+        "winhttp.dll": "8c6cdbc38836dee87e3368f5de1994d7c0ccebf29e4ce7aba3c0981f9375412c"
+      }
+    },
+    {
+      "id": "lovely",
+      "name": "Lovely Injector",
+      "version": "0.10.0",
+      "variant": "x86_64-pc-windows-msvc",
+      "release": "https://github.com/ethangreen-dev/lovely-injector/releases/tag/v0.10.0",
+      "license": "MIT",
+      "files": {
+        "winmm.dll": "6f707d32ff022f155584340bfb19cd93205cb47234e8bec80ccfc747222dfea2"
+      }
+    }
+  ]
+}

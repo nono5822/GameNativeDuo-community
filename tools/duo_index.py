@@ -56,6 +56,15 @@ MAX_MOD_FILE = 20 * 1024 * 1024  # bigger mod binaries go to GitHub Releases (fi
 # list comes only from here, and the gamenative-duo. namespace is reserved for ids listed here.
 OFFICIAL_FILE = ROOT / "OFFICIAL"
 RESERVED_PREFIX = "gamenative-duo."
+# Maintainer-owned pins (CODEOWNERS): the only binaries a package may contain, and the reference sets builds use.
+LOADERS_FILE = ROOT / "loaders.json"
+REFS_FILE = ROOT / "refs.json"
+# Code is built by CI from source (build in the manifest); these never come from a package unless pinned in loaders.json.
+BINARY_EXTENSIONS = {".dll", ".exe", ".so", ".dylib", ".asi", ".bin", ".pyd", ".node", ".jar", ".class", ".wasm"}
+BINARY_MAGIC = (b"MZ", b"\x7fELF", b"\xca\xfe\xba\xbe", b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\x00asm", b"PK\x03\x04")
+SCRIPT_EXTENSIONS = {".lua", ".toml", ".json", ".txt", ".md", ".cfg", ".ini", ".xml", ".yaml", ".yml"}
+SOURCE_DIR = "src"
+MAX_SOURCE = 5 * 1024 * 1024
 
 
 def official_ids():
@@ -64,6 +73,33 @@ def official_ids():
         return set()
     lines = (line.split("#", 1)[0].strip() for line in OFFICIAL_FILE.read_text(encoding="utf-8").splitlines())
     return {line for line in lines if line}
+
+
+def loader_hashes():
+    """sha256 -> "loader version path" for every pinned loader file."""
+    if not LOADERS_FILE.is_file():
+        return {}
+    data = json.loads(LOADERS_FILE.read_text(encoding="utf-8"))
+    return {sha: f"{l['name']} {l['version']} {path}" for l in data["loaders"] for path, sha in l["files"].items()}
+
+
+def ref_sets():
+    """id -> entry of refs.json."""
+    if not REFS_FILE.is_file():
+        return {}
+    return {r["id"]: r for r in json.loads(REFS_FILE.read_text(encoding="utf-8"))["refs"]}
+
+
+def is_binary(path):
+    """By extension or by content: executables, libraries and archives (an archive could carry either)."""
+    if Path(path).suffix.lower() in BINARY_EXTENSIONS:
+        return True
+    try:
+        with open(path, "rb") as f:
+            head = f.read(4)
+    except OSError:
+        return False
+    return any(head.startswith(m) for m in BINARY_MAGIC)
 
 
 class Problems:
@@ -161,14 +197,20 @@ def validate(fetch_remote=False):
         declared = {f["path"] for f in manifest["files"]}
         screenshots = manifest.get("screenshots", [])
         listed = declared | set(screenshots) | {"manifest.json"}
+        build = manifest.get("build")
+        own_source = build is not None and "source" not in build
 
-        # Every file in the folder is declared: nothing rides along unseen.
+        # Every file in the folder is declared: nothing rides along unseen. A built mod's src/ is checked by check_build.
         for path in sorted(p for p in folder.rglob("*") if p.is_file()):
-            if path.relative_to(folder).as_posix() not in listed:
+            relpath = path.relative_to(folder).as_posix()
+            if own_source and relpath.startswith(SOURCE_DIR + "/"):
+                continue
+            if relpath not in listed:
                 problems.add(rel, f"undeclared file {path.relative_to(folder).as_posix()} (list it in files or screenshots, or remove it)")
 
+        loaders = loader_hashes()
         for f in manifest["files"]:
-            check_file(problems, rel, folder, kind, f, fetch_remote)
+            check_file(problems, rel, folder, kind, f, fetch_remote, loaders)
         for shot in screenshots:
             path = inside(folder, shot)
             if path is None or not path.is_file():
@@ -191,20 +233,71 @@ def validate(fetch_remote=False):
                 except (ValueError, UnicodeDecodeError) as e:
                     problems.add(rel, f"{name} is not valid JSON: {e}")
         if kind == "mod":
+            outputs = set((build or {}).get("outputs", {}).values())
+            if build is not None:
+                check_build(problems, rel, folder, build, declared)
             install = manifest["install"]
             for section in ("gameFiles", "prefixFiles"):
                 for src in install.get(section, {}):
-                    if not any(p == src or p.startswith(src.rstrip("/") + "/") for p in declared):
-                        problems.add(rel, f"install.{section}: '{src}' matches no entry of files")
+                    if not any(p == src or p.startswith(src.rstrip("/") + "/") for p in declared | outputs):
+                        problems.add(rel, f"install.{section}: '{src}' matches no entry of files or build.outputs")
         packages.append((where, folder, manifest))
     for pid in sorted(official - set(seen_ids)):
         problems.add("OFFICIAL", f"'{pid}' is not a package in this repo")
     return packages, problems
 
 
-def check_file(problems, rel, folder, kind, f, fetch_remote):
+def check_build(problems, rel, folder, build, declared):
+    """A mod's build section: its source, its references, its outputs. CI builds it (tools/build_mods.py)."""
+    src = folder / SOURCE_DIR
+    clash = declared & set(build["outputs"].values())
+    for path in sorted(clash):
+        problems.add(rel, f"build.outputs: '{path}' is also in files (a built file comes only from the build)")
+    known = ref_sets()
+    for ref in build.get("refs", []):
+        if ref not in known:
+            problems.add(rel, f"build.refs: '{ref}' is not in refs.json")
+    for name, value in build.get("properties", {}).items():
+        for ref in [part.split("}", 1)[0] for part in value.split("{refs:")[1:]]:
+            if ref not in build.get("refs", []):
+                problems.add(rel, f"build.properties.{name}: {{refs:{ref}}} is not listed in build.refs")
+    if "source" in build:
+        if src.exists():
+            problems.add(rel, f"build.source names a repository: remove the {SOURCE_DIR}/ folder (one source only)")
+        return
+    if not src.is_dir():
+        problems.add(rel, f"a built mod needs its source in {SOURCE_DIR}/ (or build.source: a repository and commit)")
+        return
+    files = [p for p in src.rglob("*") if p.is_file()]
+    total = sum(p.stat().st_size for p in files)
+    if total > MAX_SOURCE:
+        problems.add(rel, f"{SOURCE_DIR}/ is {total // 1024} KB, over {MAX_SOURCE // 1024} KB")
+    for path in sorted(files):
+        if is_binary(path):
+            problems.add(rel, f"{path.relative_to(folder).as_posix()}: binaries are not source (dependencies come from NuGet with a lock file, game assemblies from refs.json)")
+    if build["engine"] == "dotnet":
+        project = inside(src, build["project"])
+        if project is None or not project.is_file():
+            problems.add(rel, f"build.project: {SOURCE_DIR}/{build['project']} not found")
+        elif "<PackageReference" in project.read_text(encoding="utf-8", errors="replace") and not (project.parent / "packages.lock.json").is_file():
+            problems.add(rel, f"build.project uses NuGet packages: commit packages.lock.json next to it (RestorePackagesWithLockFile)")
+    else:
+        for out in build["outputs"]:
+            target = inside(src, out)
+            if target is None or not target.is_file():
+                problems.add(rel, f"build.outputs: {SOURCE_DIR}/{out} not found")
+            elif Path(out).suffix.lower() not in SCRIPT_EXTENSIONS:
+                problems.add(rel, f"build.outputs: {out}: a scripts mod ships only {', '.join(sorted(SCRIPT_EXTENSIONS))}")
+
+
+def check_file(problems, rel, folder, kind, f, fetch_remote, loaders=None):
     path, expected = f["path"], f["sha256"]
     ext = Path(path).suffix.lower()
+    loaders = loaders if loaders is not None else loader_hashes()
+    pinned = expected in loaders
+    if kind == "mod" and ext in BINARY_EXTENSIONS and not pinned:
+        problems.add(rel, f"{path}: binaries come from the build (build in the manifest), or must be a pinned loader file (loaders.json)")
+        return
     if kind in DATA_KINDS:
         if "url" in f:
             problems.add(rel, f"{path}: data packages keep their files in the folder (no url)")
@@ -218,6 +311,8 @@ def check_file(problems, rel, folder, kind, f, fetch_remote):
                     data = r.read(MAX_MOD_FILE * 10 + 1)
                 if hashlib.sha256(data).hexdigest() != expected:
                     problems.add(rel, f"{path}: sha256 of {f['url']} does not match")
+                elif kind == "mod" and not pinned and any(data.startswith(m) for m in BINARY_MAGIC):
+                    problems.add(rel, f"{path}: {f['url']} is a binary: binaries come from the build or loaders.json")
             except OSError as e:
                 problems.add(rel, f"{path}: cannot download {f['url']}: {e}")
         return
@@ -235,6 +330,8 @@ def check_file(problems, rel, folder, kind, f, fetch_remote):
     actual = sha256_file(target)
     if actual != expected:
         problems.add(rel, f"{path}: sha256 is {actual}, manifest says {expected}")
+    elif kind == "mod" and not pinned and is_binary(target):
+        problems.add(rel, f"{path}: binaries come from the build (build in the manifest), or must be a pinned loader file (loaders.json)")
 
 
 # ---- build --------------------------------------------------------------------------------------------------------

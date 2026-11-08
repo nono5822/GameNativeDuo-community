@@ -48,8 +48,25 @@
 - **`device-profile`**: goes in `devices/<your-name>.<device>/` with a `device-profile.json`; no `game`. Get the real
   screen data from the app's `Android/data/app.gamenative.duo/files/duo/displays.json` after running any game.
 - **`mod`**: code. Needs `requires.adapter` and an `install` map (where each file goes, plus any Wine DLL overrides).
-  Files up to 20 MB live in the folder; bigger ones are attached to a release of this repo and referenced by `url`
-  and `sha256`. A maintainer reviews the code before merge. State the licence of everything you include.
+  **Code is built from source by CI, never uploaded as a binary.** Put the source in the package's `src/` folder, or
+  name a public repository and a full commit hash in `build.source`, and describe the build:
+
+  ```json
+  "build": {
+    "engine": "dotnet",
+    "project": "MyMod.csproj",
+    "refs": ["hollow-knight-1.5.78"],
+    "properties": { "ManagedPath": "{refs:hollow-knight-1.5.78}" },
+    "outputs": { "bin/Release/net472/MyMod.dll": "plugin/MyMod.dll" }
+  }
+  ```
+
+  `outputs` maps what the build produces to the package paths `install` uses; CI builds the mod in a clean runner and
+  the index lists only the files it built (`tools/build_mods.py`). Game and engine assemblies come from `refs.json`
+  (reference stubs: public API only, never game files). NuGet packages need a committed `packages.lock.json`. A Lua
+  mod uses `"engine": "scripts"`: its source files are the mod. The only binaries a package may contain are the pinned
+  loader files in `loaders.json` (BepInEx, Lovely). A maintainer reviews the code before merge. State the licence of
+  everything you include.
 
 ## Updating a package
 

@@ -187,9 +187,9 @@
       }
     },
     "files": {
-      "description": "Every file the package installs. Local files sit in the package folder; large mod binaries may instead be a GitHub Release asset of this repo (url).",
+      "description": "Every file the package installs. Local files sit in the package folder; large data files may instead be a GitHub Release asset of this repo (url). Code is never a file here: a mod's binaries come from its build (CI), and the only binaries allowed are pinned loader files (loaders.json).",
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "maxItems": 200,
       "items": {
         "type": "object",
@@ -271,6 +271,107 @@
           ]
         }
       }
+    },
+    "build": {
+      "description": "mod only: how CI builds the mod from source. The index lists only CI-built outputs, never binaries from the package.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine",
+        "outputs"
+      ],
+      "properties": {
+        "engine": {
+          "description": "dotnet: dotnet build of project (C#: BepInEx, SMAPI). scripts: no build, the source files are the mod (Lua); outputs name them.",
+          "enum": [
+            "dotnet",
+            "scripts"
+          ]
+        },
+        "source": {
+          "description": "Where the source is. Omitted: the package's own src/ folder. Otherwise a public git repository at a full commit hash (a tag or branch could move).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repo",
+            "commit"
+          ],
+          "properties": {
+            "repo": {
+              "type": "string",
+              "pattern": "^https://(github\\.com|gitlab\\.com|codeberg\\.org)/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "path": {
+              "$ref": "#/$defs/relPath"
+            }
+          }
+        },
+        "project": {
+          "description": "dotnet: the .csproj, relative to the source root.",
+          "$ref": "#/$defs/relPath"
+        },
+        "configuration": {
+          "enum": [
+            "Release",
+            "Debug"
+          ],
+          "default": "Release"
+        },
+        "refs": {
+          "description": "Reference sets from refs.json (game and engine assemblies as stubs: public API only, no code) the build compiles against.",
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"
+          }
+        },
+        "properties": {
+          "description": "MSBuild properties. {refs:<id>} stands for the folder of that reference set, {source} for the source root.",
+          "type": "object",
+          "maxProperties": 20,
+          "propertyNames": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^[^;\"`$]*$"
+          }
+        },
+        "outputs": {
+          "description": "Build output (relative to the source root) -> the package path install refers to. CI hashes each one into the index.",
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 50,
+          "propertyNames": {
+            "$ref": "#/$defs/relPath"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/relPath"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "engine": {
+                "const": "dotnet"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "project"
+            ]
+          }
+        }
+      ]
     }
   },
   "$defs": {
@@ -326,6 +427,24 @@
         "not": {
           "required": [
             "install"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "not": {
+              "const": "mod"
+            }
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "build"
           ]
         }
       }
