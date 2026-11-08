@@ -1,0 +1,6 @@
+{
+  "$comment": "Maintainer-owned (CODEOWNERS). Package versions the app must turn off: published signed as v1/revoked.json; the app removes an installed revoked mod through its undo record at the next launch and shows the reason. versions: exact versions, or [\"*\"] for every version.",
+  "format": "gamenative-duo/revoked",
+  "version": 1,
+  "revoked": []
+}

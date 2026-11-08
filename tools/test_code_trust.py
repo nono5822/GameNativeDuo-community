@@ -190,6 +190,32 @@ class InstallRules(unittest.TestCase):
         self.assertEqual(sorted(got), ["BepInEx/plugins/Me/A.dll", "BepInEx/plugins/Me/README.txt", "BepInEx/plugins/Me/sub/B.txt"])
 
 
+class Revocation(unittest.TestCase):
+    def setUp(self):
+        self.original = duo_index.REVOKED_FILE
+        self.tmp = tempfile.TemporaryDirectory()
+        duo_index.REVOKED_FILE = Path(self.tmp.name) / "revoked.json"
+
+    def tearDown(self):
+        duo_index.REVOKED_FILE = self.original
+        self.tmp.cleanup()
+
+    def test_versions_and_wildcard(self):
+        duo_index.REVOKED_FILE.write_text(json.dumps({"revoked": [
+            {"id": "a.mod", "versions": ["1.0.0"], "reason": "sent save files away"},
+            {"id": "b.mod", "versions": ["*"], "reason": "author key leaked"}]}))
+        r = duo_index.revocations()
+        self.assertEqual(duo_index.revoked_reason(r, "a.mod", "1.0.0"), "sent save files away")
+        self.assertIsNone(duo_index.revoked_reason(r, "a.mod", "1.0.1"))
+        self.assertEqual(duo_index.revoked_reason(r, "b.mod", "9.9.9"), "author key leaked")
+
+    def test_entries_without_a_reason_are_problems(self):
+        duo_index.REVOKED_FILE.write_text(json.dumps({"revoked": [{"id": "a.mod", "versions": ["1.0.0"], "reason": " "}]}))
+        p = duo_index.Problems()
+        self.assertEqual(duo_index.revocations(p), [])
+        self.assertTrue(p.items)
+
+
 class ReviewHints(unittest.TestCase):
     def test_flags(self):
         f = review_flags.flag_line

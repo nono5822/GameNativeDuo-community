@@ -17,6 +17,7 @@ Published site (v1):
     v1/catalog.json (+ .sig)            every game with packages, and every device profile
     v1/games/<store>-<appId>.json (+ .sig)
     v1/blobs/<sha256>                   package files and screenshots, content-addressed
+    v1/revoked.json (+ .sig)            package versions the app turns off (from revoked.json)
     v1/public-key.txt                   base64 raw ed25519 public key
 Signatures are base64 raw ed25519 over the exact bytes of the JSON file.
 """
@@ -62,6 +63,7 @@ RESERVED_PREFIX = "gamenative-duo."
 # Maintainer-owned pins (CODEOWNERS): the only binaries a package may contain, and the reference sets builds use.
 LOADERS_FILE = ROOT / "loaders.json"
 REFS_FILE = ROOT / "refs.json"
+REVOKED_FILE = ROOT / "revoked.json"
 # Code is built by CI from source (build in the manifest); these never come from a package unless pinned in loaders.json.
 BINARY_EXTENSIONS = {".dll", ".exe", ".so", ".dylib", ".asi", ".bin", ".pyd", ".node", ".jar", ".class", ".wasm"}
 BINARY_MAGIC = (b"MZ", b"\x7fELF", b"\xca\xfe\xba\xbe", b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\x00asm", b"PK\x03\x04")
@@ -187,6 +189,36 @@ def base_manifest(rel, ref):
         return json.loads(r.stdout)
     except ValueError:
         return None
+
+
+def revocations(problems=None):
+    """The entries of revoked.json, checked: {id, versions, reason, date}."""
+    if not REVOKED_FILE.is_file():
+        return []
+    try:
+        entries = json.loads(REVOKED_FILE.read_text(encoding="utf-8"))["revoked"]
+    except (ValueError, KeyError) as e:
+        if problems is not None:
+            problems.add("revoked.json", f"not readable: {e}")
+        return []
+    good = []
+    for i, e in enumerate(entries):
+        ok = (isinstance(e, dict) and isinstance(e.get("id"), str) and isinstance(e.get("reason"), str) and e["reason"].strip()
+              and isinstance(e.get("versions"), list) and e["versions"] and all(isinstance(v, str) for v in e["versions"])
+              and set(e) <= {"id", "versions", "reason", "date"})
+        if not ok:
+            if problems is not None:
+                problems.add("revoked.json", f"revoked[{i}] needs id, versions (a list, or [\"*\"]) and a reason")
+            continue
+        good.append(e)
+    return good
+
+
+def revoked_reason(revoked, pid, version):
+    for e in revoked:
+        if e["id"] == pid and ("*" in e["versions"] or version in e["versions"]):
+            return e["reason"]
+    return None
 
 
 class Problems:
@@ -331,6 +363,7 @@ def validate(fetch_remote=False, base_ref=None):
                     if not any(p == src or p.startswith(src.rstrip("/") + "/") for p in declared | outputs):
                         problems.add(rel, f"install.{section}: '{src}' matches no entry of files or build.outputs")
         packages.append((where, folder, manifest))
+    revocations(problems)
     for pid in sorted(official - set(seen_ids)):
         problems.add("OFFICIAL", f"'{pid}' is not a package in this repo")
     return packages, problems
@@ -505,6 +538,7 @@ def build(out, base_url, signing_key, ratings=None, built_dir=None):
 
     games, devices = {}, []
     official = official_ids()
+    revoked = revocations()
     for where, folder, m in packages:
         entry = {k: v for k, v in m.items() if k not in ("files", "screenshots", "$schema", "format", "version", "author")}
         if author_chain(m):
@@ -512,6 +546,9 @@ def build(out, base_url, signing_key, ratings=None, built_dir=None):
             entry["authorKey"] = m["author"]["key"]
             entry["authorKeys"] = author_chain(m)
         entry["updated"] = git_date(folder)
+        reason = revoked_reason(revoked, m["id"], m["packageVersion"])
+        if reason:
+            entry["revoked"] = reason  # listed so users see why, never installed
         if ratings and m["id"] in ratings:
             entry["rating"] = ratings[m["id"]]
         files = []
@@ -556,6 +593,11 @@ def build(out, base_url, signing_key, ratings=None, built_dir=None):
         "games": catalog_games, "devices": devices,
     }, signing_key)
 
+    write_signed(site / "revoked.json", {
+        "format": "gamenative-duo/revoked", "version": 1, "generated": git_date(REVOKED_FILE) or git_date(ROOT),
+        "revoked": sorted(revoked, key=lambda e: e["id"]),
+    }, signing_key)
+
     public = signing_key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     (site / "public-key.txt").write_text(base64.b64encode(public).decode() + "\n")
     shutil.copytree(SCHEMA_DIR, out / "schema")
@@ -585,7 +627,7 @@ def verify(site_root, public_b64=None):
     public_b64 = public_b64 or (site / "public-key.txt").read_text().strip()
     public = Ed25519PublicKey.from_public_bytes(base64.b64decode(public_b64))
     problems = Problems()
-    signed = [site / "catalog.json"] + sorted((site / "games").glob("*.json"))
+    signed = [site / "catalog.json", site / "revoked.json"] + sorted((site / "games").glob("*.json"))
     for path in signed:
         try:
             public.verify(base64.b64decode(Path(str(path) + ".sig").read_text().strip()), path.read_bytes())
