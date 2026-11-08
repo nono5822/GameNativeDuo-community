@@ -1,0 +1,2 @@
+# Only for tools/ai_review.py (review.yml, when the ANTHROPIC_API_KEY secret is set).
+anthropic>=1.1,<2

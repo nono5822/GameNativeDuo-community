@@ -1,0 +1,49 @@
+name: Review hints
+
+# Comments review hints (and, when the ANTHROPIC_API_KEY secret is set, an AI-assisted review) on pull requests that
+# change packages. pull_request_target, so it may comment on pull requests from forks: it therefore never builds or
+# runs anything from the pull request. Tools come from the base branch; the pull request's files are read as data from
+# ./head. Building happens in validate.yml (pull_request: no secrets, read-only token).
+on:
+  pull_request_target:
+    paths:
+      - "games/**"
+      - "devices/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  hints:
+    runs-on: ubuntu-latest
+    env:
+      HAS_AI_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4 # the base branch: trusted tools
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4 # the pull request: data only
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tools/requirements.txt
+      - name: Review hints
+        run: python tools/review_flags.py --base . --head head --diff-out "$RUNNER_TEMP/diff.txt" > "$RUNNER_TEMP/comment.md"
+      - name: AI-assisted review (optional)
+        if: env.HAS_AI_KEY == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          pip install -r tools/requirements-review.txt
+          python tools/ai_review.py --diff "$RUNNER_TEMP/diff.txt" --flags "$RUNNER_TEMP/comment.md" > "$RUNNER_TEMP/ai.md"
+          printf '\n\n' >> "$RUNNER_TEMP/comment.md"
+          cat "$RUNNER_TEMP/ai.md" >> "$RUNNER_TEMP/comment.md"
+      - name: Comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file "$RUNNER_TEMP/comment.md" --edit-last --create-if-none

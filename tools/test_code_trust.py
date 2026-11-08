@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_mods  # noqa: E402
 import duo_index  # noqa: E402
+import review_flags  # noqa: E402
 
 CSPROJ = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net46</TargetFramework></PropertyGroup></Project>'
 
@@ -159,6 +160,56 @@ class Builder(unittest.TestCase):
         (self.folder / "src/main.lua").write_text("return 1")
         with self.assertRaises(build_mods.BuildError):
             self.build_twice({"engine": "scripts", "outputs": {"other.lua": "mod/other.lua"}})
+
+
+class ReviewHints(unittest.TestCase):
+    def test_flags(self):
+        f = review_flags.flag_line
+        self.assertIn("Network", f("var c = new HttpClient();"))
+        self.assertIn("Starts processes", f('Process.Start("cmd.exe");'))
+        self.assertIn("Native code / P/Invoke", f('[DllImport("kernel32")] static extern IntPtr LoadLibrary(string n);'))
+        self.assertIn("Store sign-ins / secrets", f('var p = Path.Combine(steam, "config", "loginusers.vdf");'))
+        self.assertIn("Files outside the game", f('File.ReadAllText(@"C:\\Users\\x\\secret.txt");'))
+        self.assertIn("Loads code at run time", f("Assembly.Load(bytes);"))
+        self.assertIn("Obfuscation", f('var s = Convert.FromBase64String("' + "QUJD" * 40 + '");'))
+        self.assertEqual(f("var rect = element.Rect; // move the HUD"), [])
+
+    def test_changed_mod_package_lists_flagged_added_lines(self):
+        with tempfile.TemporaryDirectory() as d:
+            base, head = Path(d) / "base", Path(d) / "head"
+            rel = "games/steam-1/me.mod"
+            manifest = {"id": "me.mod", "kind": "mod", "packageVersion": "1.0.0",
+                        "install": {"gameFiles": {"plugin/Mod.dll": "BepInEx/plugins/Mod.dll"}},
+                        "build": {"engine": "dotnet", "project": "Mod.csproj", "outputs": {"Mod.dll": "plugin/Mod.dll"}}}
+            for root, code in ((base, "class P { void A() {} }"), (head, "class P { void A() {} }\nclass Q { void B() { Process.Start(\"x\"); } }")):
+                (root / rel / "src").mkdir(parents=True)
+                m = dict(manifest, packageVersion="1.0.0" if root == base else "1.1.0")
+                if root == head:
+                    m["install"] = {"gameFiles": {"plugin/Mod.dll": "BepInEx/plugins/Mod.dll"}, "dllOverrides": ["version=n,b"]}
+                (root / rel / "manifest.json").write_text(json.dumps(m))
+                (root / rel / "src/Plugin.cs").write_text(code)
+            (base / "games/steam-2/me.same/").mkdir(parents=True)
+            (base / "games/steam-2/me.same/manifest.json").write_text("{}")
+            (head / "games/steam-2/me.same/").mkdir(parents=True)
+            (head / "games/steam-2/me.same/manifest.json").write_text("{}")
+            changed, removed = review_flags.changed_packages(base, head)
+            self.assertEqual((changed, removed), ([rel], []))
+            work = Path(d) / "work"
+            work.mkdir()
+            lines, diff = review_flags.review_package(rel, base, head, work)
+            text = "\n".join(lines)
+            self.assertIn("1.0.0 → 1.1.0", text)
+            self.assertIn("`version=n,b`", text)
+            self.assertIn("| Starts processes | `Plugin.cs:2` |", text)
+            self.assertIn("+class Q", diff)
+
+    def test_sdk_copies_may_use_the_bridge(self):
+        with tempfile.TemporaryDirectory() as d:
+            old, new = Path(d) / "old", Path(d) / "new"
+            old.mkdir(); new.mkdir()
+            (new / "Bridge.cs").write_text("namespace GameNativeDuo.Sdk\n{\n  class B { UdpClient c = new UdpClient(); }\n}")
+            diffs = review_flags.file_diffs(old, new)
+            self.assertEqual(list(diffs), ["Bridge.cs"])
 
 
 if __name__ == "__main__":
