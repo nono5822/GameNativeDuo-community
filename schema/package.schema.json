@@ -408,6 +408,42 @@
           }
         }
       }
+    },
+    "bridge": {
+      "description": "mod only: what the mod does over the GameNative Duo bridge. For mods built from source the app drops packets of features not listed here, and sends only listed commands. Required with build.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 20,
+          "items": {
+            "enum": [
+              "touch",
+              "ui-rules",
+              "elements",
+              "background-basic",
+              "background-blur",
+              "background-game",
+              "state",
+              "commands",
+              "elements-changed",
+              "haptic"
+            ]
+          }
+        },
+        "commands": {
+          "description": "Command names the mod runs, e.g. hk.map.zoom; a trailing .* covers a prefix.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+(\\.[a-z0-9_-]+)*(\\.\\*)?$"
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -488,6 +524,37 @@
             "build"
           ]
         }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "not": {
+              "const": "mod"
+            }
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "bridge"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "build"
+        ]
+      },
+      "then": {
+        "required": [
+          "bridge",
+          "author"
+        ]
       }
     }
   ]

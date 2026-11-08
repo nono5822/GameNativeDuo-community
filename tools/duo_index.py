@@ -69,6 +69,12 @@ SCRIPT_EXTENSIONS = {".lua", ".toml", ".json", ".txt", ".md", ".cfg", ".ini", ".
 SOURCE_DIR = "src"
 # Author signatures (ssh-keygen -Y): the manifest, and an old key handing a package over to a new one.
 SIG_FILE = "manifest.json.sig"
+# Where a mod may write in the Wine prefix (drive_c): the user's own folders, never Windows, programs or the app's files.
+PREFIX_ALLOWED = ("users/xuser/AppData/", "users/xuser/Documents/")
+PREFIX_RESERVED = "users/xuser/AppData/Roaming/GameNativeDuo/"
+RESERVED_DUO_FILES = {"layout.json", "ui.json", "elements.json", "features.json", "bridge.json", "profile.json", "companion-api.json"}
+# DLLs a shared asset or loader provides at the game folder's root (for dllOverrides).
+SHARED_DLLS = {"bepinex": {"winhttp"}}
 SIG_NAMESPACE = "gamenative-duo-package"
 HANDOVER_NAMESPACE = "gamenative-duo-key-handover"
 MAX_SOURCE = 5 * 1024 * 1024
@@ -318,6 +324,7 @@ def validate(fetch_remote=False, base_ref=None):
             outputs = set((build or {}).get("outputs", {}).values())
             if build is not None:
                 check_build(problems, rel, folder, build, declared)
+            check_install(problems, rel, manifest)
             install = manifest["install"]
             for section in ("gameFiles", "prefixFiles"):
                 for src in install.get(section, {}):
@@ -327,6 +334,43 @@ def validate(fetch_remote=False, base_ref=None):
     for pid in sorted(official - set(seen_ids)):
         problems.add("OFFICIAL", f"'{pid}' is not a package in this repo")
     return packages, problems
+
+
+def install_targets(mapping, files):
+    """Target paths of an install map, resolved like the app does (CommunityModInstaller.plan)."""
+    for src, dst in mapping.items():
+        folder = src.rstrip("/") + "/"
+        for path in sorted(p for p in files if p == src or p.startswith(folder)):
+            rest = Path(path).name if path == src else path[len(folder):]
+            if path == src and dst and not dst.endswith("/"):
+                yield dst
+            elif not dst:
+                yield rest
+            else:
+                yield dst.rstrip("/") + "/" + rest
+
+
+def check_install(problems, rel, manifest):
+    """Install targets stay in their lanes; DLL overrides name DLLs the package really puts at the game folder's root."""
+    install = manifest["install"]
+    files = {f["path"] for f in manifest["files"]} | set(manifest.get("build", {}).get("outputs", {}).values())
+    for src, dst in install.get("prefixFiles", {}).items():
+        if not dst.startswith(PREFIX_ALLOWED):
+            problems.add(rel, f"install.prefixFiles: {dst}: a mod may write only under {' or '.join(PREFIX_ALLOWED)}")
+        elif dst.startswith(PREFIX_RESERVED):
+            problems.add(rel, f"install.prefixFiles: {dst}: GameNative Duo's own folder is written by the app")
+    root_dlls = set()
+    for target in install_targets(install.get("gameFiles", {}), files):
+        if "/" not in target and target.lower().endswith(".dll"):
+            root_dlls.add(target[:-4].lower())
+        if Path(target).name in RESERVED_DUO_FILES and "GameNativeDuo" in target:
+            problems.add(rel, f"install.gameFiles: {target}: written by the app")
+    for name in install.get("sharedAssets", {}):
+        root_dlls |= SHARED_DLLS.get(name, set())
+    for override in install.get("dllOverrides", []):
+        dll = override.split("=", 1)[0].lower()
+        if dll not in root_dlls:
+            problems.add(rel, f"install.dllOverrides: {override}: the package installs no {dll}.dll at the game folder's root")
 
 
 def check_build(problems, rel, folder, build, declared):

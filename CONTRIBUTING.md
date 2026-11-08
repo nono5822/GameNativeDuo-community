@@ -61,6 +61,15 @@
   }
   ```
 
+  Declare what the mod does over the bridge; for built mods the app drops everything else:
+
+  ```json
+  "bridge": { "capabilities": ["touch", "ui-rules", "elements", "state"], "commands": ["mymod.map.*"] }
+  ```
+
+  `install.prefixFiles` may write only under `users/xuser/AppData/` or `users/xuser/Documents/` (never GameNative Duo's
+  own folder), and a DLL override must name a DLL the package puts at the game folder's root.
+
   `outputs` maps what the build produces to the package paths `install` uses; CI builds the mod in a clean runner and
   the index lists only the files it built (`tools/build_mods.py`). Game and engine assemblies come from `refs.json`
   (reference stubs: public API only, never game files). NuGet packages need a committed `packages.lock.json`. A Lua

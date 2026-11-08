@@ -163,6 +163,33 @@ class Builder(unittest.TestCase):
             self.build_twice({"engine": "scripts", "outputs": {"other.lua": "mod/other.lua"}})
 
 
+class InstallRules(unittest.TestCase):
+    def problems(self, install, files=(), outputs=None):
+        m = {"files": [{"path": f} for f in files], "install": install}
+        if outputs:
+            m["build"] = {"outputs": outputs}
+        p = duo_index.Problems()
+        duo_index.check_install(p, "pkg", m)
+        return p.items
+
+    def test_prefix_files_stay_in_the_users_folders(self):
+        self.assertEqual(self.problems({"prefixFiles": {"cfg.json": "users/xuser/AppData/LocalLow/Game/cfg.json"}}, ["cfg.json"]), [])
+        self.assertTrue(self.problems({"prefixFiles": {"x.dll": "windows/system32/x.dll"}}, ["x.dll"]))
+        self.assertTrue(self.problems({"prefixFiles": {"l.json": "users/xuser/AppData/Roaming/GameNativeDuo/layout.json"}}, ["l.json"]))
+
+    def test_dll_override_needs_that_dll_at_the_root(self):
+        self.assertEqual(self.problems({"sharedAssets": {"bepinex": ""}, "dllOverrides": ["winhttp=n,b"]}), [])
+        built = {"bin/version.dll": "loader/version.dll"}
+        self.assertEqual(self.problems({"gameFiles": {"loader/": ""}, "dllOverrides": ["version=n,b"]}, outputs=built), [])
+        self.assertTrue(self.problems({"gameFiles": {"loader/": "sub/"}, "dllOverrides": ["version=n,b"]}, outputs=built))
+        self.assertTrue(self.problems({"dllOverrides": ["d3d11=n"]}))
+
+    def test_targets_resolve_like_the_app(self):
+        files = ["plugin/A.dll", "plugin/sub/B.txt", "README.txt"]
+        got = list(duo_index.install_targets({"plugin/": "BepInEx/plugins/Me/", "README.txt": "BepInEx/plugins/Me/README.txt"}, files))
+        self.assertEqual(sorted(got), ["BepInEx/plugins/Me/A.dll", "BepInEx/plugins/Me/README.txt", "BepInEx/plugins/Me/sub/B.txt"])
+
+
 class ReviewHints(unittest.TestCase):
     def test_flags(self):
         f = review_flags.flag_line
