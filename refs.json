@@ -1,6 +1,19 @@
 {
-  "$comment": "Maintainer-owned (CODEOWNERS). Reference sets builds compile against: game and engine assemblies as stubs (duo stubs: public API, no method bodies, no resources), one zip each, pinned by sha256. Never game files.",
+  "$comment": "Maintainer-owned (CODEOWNERS). Reference sets builds compile against: game and engine assemblies as stubs (duo stubs: public API, no method bodies, no resources), one zip each, pinned by sha256. Never game files. An entry without url is not hosted yet: CI cannot build mods that need it (build locally with --refs-dir).",
   "format": "gamenative-duo/refs",
   "version": 1,
-  "refs": []
+  "refs": [
+    {
+      "id": "bepinex-5.4.23.5",
+      "title": "BepInEx 5.4.23.5 core (BepInEx.dll, 0Harmony.dll)",
+      "sha256": "e8df32745e49a56677c7389d6929e0f97a621b6e26ebbac1b5c8c8334971ffdd",
+      "made": "duo stubs BepInEx/core --only BepInEx.dll,0Harmony.dll (from the pinned loader in loaders.json)"
+    },
+    {
+      "id": "hollow-knight-1.5.12620",
+      "title": "Hollow Knight 1.5.12620 (Steam build 22529139), hollow_knight_Data/Managed",
+      "sha256": "f8ea75e0ad4a722cbf996f96eb6e1bc3caa9fa8cfcfcf65c296fe5fa0becd739",
+      "made": "duo stubs hollow_knight_Data/Managed"
+    }
+  ]
 }

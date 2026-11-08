@@ -5,6 +5,7 @@
     python tools/build_mods.py --out built --reproducible    # build twice in different folders, compare hashes
     python tools/build_mods.py --out built --refs-dir DIR    # take reference sets from DIR/<id>.zip (else download)
     python tools/build_mods.py --out built --package ID      # one package
+    python tools/build_mods.py --out built --repo-mirror https://github.com/me/mod=../mod   # unpushed commit
 
 Writes built/built.json ({package id: {"packageVersion", "source", "outputs": {package path: {"sha256", "size"}}}}) and
 built/files/<sha256> for each output. duo_index.py build --built built publishes them.
@@ -73,31 +74,36 @@ def fetch_ref(ref, refs_dir, dest):
     archive.unlink()
 
 
-def checkout(build, folder, dest):
-    """The source tree in dest: the package's src/ or the named repository at the named commit."""
+def checkout(build, folder, work, mirrors=None):
+    """(source root, description): the package's src/ copied into work, or the named repository at the named commit.
+
+    A repository is built in its checkout, so a project may use files outside build.source.path (shared code). mirrors
+    maps a repository URL to a local clone to fetch from instead (offline builds, an unpushed commit); the commit is
+    checked either way."""
     if "source" not in build:
+        dest = work / "src"
         shutil.copytree(folder / duo_index.SOURCE_DIR, dest)
-        return "package"
+        return dest, "package"
     src = build["source"]
-    repo = dest.parent / "repo"
-    run(["git", "init", "-q", str(repo)], cwd=dest.parent)
-    run(["git", "fetch", "-q", "--depth", "1", src["repo"], src["commit"]], cwd=repo)
+    repo = work / "repo"
+    run(["git", "init", "-q", str(repo)], cwd=work)
+    remote = (mirrors or {}).get(src["repo"], src["repo"])
+    run(["git", "fetch", "-q", "--depth", "1", remote, src["commit"]], cwd=repo)
     run(["git", "checkout", "-q", "FETCH_HEAD"], cwd=repo)
     head = run(["git", "rev-parse", "HEAD"], cwd=repo).strip()
     if head != src["commit"]:
         raise BuildError(f"checked out {head}, the manifest names {src['commit']}")
+    shutil.rmtree(repo / ".git")
     root = duo_index.inside(repo, src.get("path", "."))
     if root is None or not root.is_dir():
         raise BuildError(f"build.source.path {src.get('path')} not found in the repository")
-    shutil.copytree(root, dest, ignore=shutil.ignore_patterns(".git"))
-    return f"{src['repo']}@{src['commit']}"
+    return root, f"{src['repo']}@{src['commit']}"
 
 
-def build_one(folder, manifest, work, refs_dir):
+def build_one(folder, manifest, work, refs_dir, mirrors=None):
     """Builds one package in work; returns (source, {package path: bytes})."""
     build = manifest["build"]
-    src = work / "src"
-    source = checkout(build, folder, src)
+    src, source = checkout(build, folder, work, mirrors)
     known = duo_index.ref_sets()
     ref_dirs = {}
     for ref_id in build.get("refs", []):
@@ -143,7 +149,10 @@ def main():
     parser.add_argument("--refs-dir", help="folder with <id>.zip reference sets (default: download from refs.json)")
     parser.add_argument("--package", help="build only this package id")
     parser.add_argument("--reproducible", action="store_true", help="build twice in different folders and compare")
+    parser.add_argument("--repo-mirror", action="append", default=[], metavar="URL=PATH",
+                        help="fetch this repository from a local clone (testing an unpushed commit, offline builds)")
     args = parser.parse_args()
+    mirrors = dict(m.split("=", 1) for m in args.repo_mirror)
 
     if args.out.exists():
         shutil.rmtree(args.out)
@@ -153,10 +162,10 @@ def main():
         pid = manifest["id"]
         try:
             with tempfile.TemporaryDirectory(prefix="duo-build-") as a:
-                source, outputs = build_one(folder, manifest, Path(a), args.refs_dir)
+                source, outputs = build_one(folder, manifest, Path(a), args.refs_dir, mirrors)
             if args.reproducible:
                 with tempfile.TemporaryDirectory(prefix="duo-rebuild-") as b:
-                    _, again = build_one(folder, manifest, Path(b), args.refs_dir)
+                    _, again = build_one(folder, manifest, Path(b), args.refs_dir, mirrors)
                 for path, data in outputs.items():
                     if sha256_bytes(again[path]) != sha256_bytes(data):
                         raise BuildError(f"{path} is not reproducible: two builds gave different bytes")
