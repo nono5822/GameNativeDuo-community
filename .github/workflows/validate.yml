@@ -21,5 +21,6 @@ jobs:
         run: |
           python tools/test_rating_rules.py
           python tools/test_official.py
+          python tools/test_ui_layout_schema.py
       - name: Validate (schemas, hashes, sizes, paths, licences; downloads release assets)
         run: python tools/duo_index.py validate --fetch-remote

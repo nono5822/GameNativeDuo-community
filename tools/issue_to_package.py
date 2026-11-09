@@ -67,8 +67,9 @@ def main():
         layout = json.loads(layout_text)
     except ValueError as e:
         fail(f"**Layout** is not valid JSON: {e}")
-    if not isinstance(layout, dict) or not layout.get("elements"):
-        fail("**Layout** has no elements: change something in the layout editor first.")
+    # A layout may only carry hotkeys or widgets (games without a dual-screen mod have no elements).
+    if not isinstance(layout, dict) or not any(layout.get(k) for k in ("elements", "hotkeys", "widgets", "background")):
+        fail("**Layout** is empty: change something in the layout editor (or add hotkeys) first.")
     layout["game"] = f"{store.upper()}_{app_id}"
 
     author = slug(f.get("Author", ""), 39)

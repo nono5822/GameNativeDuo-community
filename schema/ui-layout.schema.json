@@ -5,7 +5,13 @@
   "description": "Which screen each UI element goes to, its size and shift. Exactly the file the in-game layout editor saves. Element ids come from the game's engine adapter (Unity: object paths like 'HUD Root/HudUI/UIContainer/crossHair').",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "version", "elements"],
+  "required": ["format", "version"],
+  "anyOf": [
+    { "required": ["elements"], "properties": { "elements": { "minProperties": 1 } } },
+    { "required": ["widgets"] },
+    { "required": ["hotkeys"] },
+    { "required": ["background"] }
+  ],
   "properties": {
     "format": { "const": "gamenative-duo/ui-layout" },
     "version": { "const": 1 },
@@ -22,7 +28,76 @@
           "screen": { "enum": ["default", "bottom", "top", "hidden"] },
           "scale": { "type": "number", "minimum": 0.25, "maximum": 4 },
           "x": { "description": "Shift, fraction of the screen's width (+ right).", "type": "number", "minimum": -2, "maximum": 2 },
-          "y": { "description": "Shift, fraction of the screen's height (+ down).", "type": "number", "minimum": -2, "maximum": 2 }
+          "y": { "description": "Shift, fraction of the screen's height (+ down).", "type": "number", "minimum": -2, "maximum": 2 },
+          "options": {
+            "description": "Settings a mod declares for its own element (e.g. Hollow Knight's live map).",
+            "type": "object",
+            "maxProperties": 32,
+            "additionalProperties": { "type": "string", "maxLength": 64 }
+          }
+        }
+      }
+    },
+    "background": {
+      "description": "What the bottom screen shows behind the game's UI. Shared layouts never carry images (the app shares them as a color).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["game", "blur", "color"] },
+        "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "dim": { "type": "number", "minimum": 0, "maximum": 0.9 },
+        "blur": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "widgets": {
+      "description": "Live readouts drawn by the app on the bottom screen; x, y are fractions of the bottom screen.",
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "x", "y"],
+        "properties": {
+          "type": { "enum": ["fps", "cpu", "gpu", "temp", "battery", "clock"] },
+          "x": { "type": "number", "minimum": 0, "maximum": 1 },
+          "y": { "type": "number", "minimum": 0, "maximum": 1 },
+          "scale": { "type": "number", "minimum": 0.5, "maximum": 3 }
+        }
+      }
+    },
+    "hotkeys": {
+      "description": "Touch hotkeys: the buttons of the companion's Hotkeys page (keys, mouse and controller buttons, mod commands).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["buttons"],
+      "properties": {
+        "columns": { "type": "integer", "minimum": 2, "maximum": 5 },
+        "size": { "enum": ["s", "m", "l"] },
+        "haptics": { "type": "boolean" },
+        "preset": { "enum": ["generic", "unity", "stardew"] },
+        "buttons": {
+          "type": "array",
+          "maxItems": 40,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string", "maxLength": 24 },
+              "icon": { "type": "string", "maxLength": 8 },
+              "keys": { "description": "Keys pressed together, e.g. \"Ctrl+Tab\", \"F5\", \"Num+\".", "type": "string", "minLength": 1, "maxLength": 60 },
+              "mouse": { "enum": ["left", "right", "middle", "wheel-up", "wheel-down"] },
+              "pad": { "enum": ["a", "b", "x", "y", "lb", "rb", "back", "start", "l3", "r3", "up", "right", "down", "left"] },
+              "command": { "description": "A command for the game's mod; keys, if given, are pressed when no mod runs.", "type": "string", "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z0-9_-]+)+$" },
+              "mode": { "enum": ["tap", "hold", "toggle"] },
+              "span": { "type": "integer", "minimum": 1, "maximum": 5 }
+            },
+            "oneOf": [
+              { "required": ["keys"], "not": { "anyOf": [{ "required": ["mouse"] }, { "required": ["pad"] }, { "required": ["command"] }] } },
+              { "required": ["mouse"], "not": { "anyOf": [{ "required": ["keys"] }, { "required": ["pad"] }, { "required": ["command"] }] } },
+              { "required": ["pad"], "not": { "anyOf": [{ "required": ["keys"] }, { "required": ["mouse"] }, { "required": ["command"] }] } },
+              { "required": ["command"], "not": { "anyOf": [{ "required": ["mouse"] }, { "required": ["pad"] }] } }
+            ]
+          }
         }
       }
     }
