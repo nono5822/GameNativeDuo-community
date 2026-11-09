@@ -30,6 +30,7 @@ jobs:
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
           RESULT_FILE: ${{ runner.temp }}/result.md
         run: |
           if folder=$(python tools/issue_to_package.py); then

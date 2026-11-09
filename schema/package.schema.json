@@ -127,6 +127,43 @@
         "maxLength": 60
       }
     },
+    "githubLogins": {
+      "description": "GitHub accounts of the package's authors. Their own 👍/👎 on the package's discussion are not counted. The share bot fills it with the sharing account.",
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9-]{1,39}$"
+      }
+    },
+    "changelog": {
+      "description": "What changed, newest first. The app shows the newest five.",
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "notes"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    },
     "license": {
       "description": "SPDX licence id of this package's content, e.g. CC0-1.0, MIT.",
       "type": "string",

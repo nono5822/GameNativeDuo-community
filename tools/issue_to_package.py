@@ -78,11 +78,22 @@ def main():
     pid = f"{author}.{name_slug}"
     folder = ROOT / "games" / f"{store}-{app_id.lower()}" / pid
 
-    version = "1.0.0"
+    # The GitHub account that opened the issue (set by the workflow, not by the form): its own votes are not counted,
+    # and only it may update the package later.
+    login = os.environ.get("ISSUE_AUTHOR", "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9-]{1,39}", login):
+        login = ""
+
+    version, logins = "1.0.0", [login] if login else []
     if (folder / "manifest.json").is_file():
-        old = json.loads((folder / "manifest.json").read_text(encoding="utf-8")).get("packageVersion", "1.0.0")
+        old_manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+        owners = old_manifest.get("githubLogins", [])
+        if owners and login.lower() not in {o.lower() for o in owners}:
+            fail(f"`{pid}` already belongs to another GitHub account: pick another **Author** or **Layout name**.")
+        old = old_manifest.get("packageVersion", "1.0.0")
         major, minor, _ = (int(x) for x in old.split("."))
         version = f"{major}.{minor + 1}.0"
+        logins = owners or logins
 
     manifest = {
         "$schema": "../../../schema/package.schema.json",
@@ -98,6 +109,8 @@ def main():
         "license": f.get("Licence", "CC0-1.0").strip(),
         "files": [{"path": "ui-layout.json", "sha256": ""}],
     }
+    if logins:
+        manifest["githubLogins"] = logins
     engine = layout.get("engine")
     if isinstance(engine, str) and re.fullmatch(r"[a-z0-9-]{1,40}", engine):
         manifest["requires"] = {"adapter": engine}
