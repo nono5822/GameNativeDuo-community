@@ -27,6 +27,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -231,7 +232,7 @@ def git_date(path):
 
 
 def dump(obj):
-    # Compact and deterministic: the same repo state always gives the same bytes (and signature).
+    # Compact and deterministic: the same content always gives the same bytes (write_signed adds the build's sequence).
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
@@ -299,8 +300,18 @@ def build(out, base_url, signing_key, ratings=None):
     print(f"Built {sum(len(v) for v in games.values())} package(s) for {len(games)} game(s), {len(devices)} device profile(s) into {out}")
 
 
+def index_sequence():
+    """When this index was built, in seconds: the app refuses a signed file older than one it already accepted,
+    so an old index (with a withdrawn package, say) cannot be served again. DUO_INDEX_SEQUENCE fixes it for tests."""
+    return int(os.environ.get("DUO_INDEX_SEQUENCE") or time.time())
+
+
+SEQUENCE = index_sequence()
+
+
 def write_signed(path, obj, private):
-    data = dump(obj)
+    # Every signed file carries the same sequence, inside what the signature covers.
+    data = dump({**obj, "sequence": SEQUENCE})
     path.write_bytes(data)
     Path(str(path) + ".sig").write_text(base64.b64encode(private.sign(data)).decode() + "\n")
 

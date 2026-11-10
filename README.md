@@ -28,6 +28,8 @@ code). Each merge into `main` compiles the packages into a signed index on GitHu
 
 Each JSON file has an ed25519 signature next to it (`.sig`). The app only trusts files signed with the key in
 [`keys/index-public-key.txt`](keys/index-public-key.txt), and every file it downloads must match its sha256.
+Each signed file also carries `sequence` (when the index was built). The app refuses a file older than one it already
+accepted, and a game file whose `key` is not the game it asked for, so an old index cannot be served again.
 
 ## Contributing
 
